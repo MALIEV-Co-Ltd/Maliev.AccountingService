@@ -1,0 +1,71 @@
+# Build outputs
+bin/
+obj/
+out/
+build/
+dist/
+
+# Git directory
+.git/
+.gitignore
+.gitattributes
+
+# IDE files
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Documentation and specs
+specs/
+*.md
+README.md
+LICENSE
+CHANGELOG.md
+docs/
+
+# Test projects
+tests/
+**/*.Tests/
+**/*.Tests.csproj
+
+# Docker files
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+azure-pipelines.yml
+
+# Logs and temp files
+*.log
+*.tmp
+*.temp
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.*
+*.env
+
+# Coverage and test results
+coverage/
+TestResults/
+*.trx
+*.coverage
+
+# NuGet
+packages/
+.nuget/
+
+# Node modules (if any frontend assets)
+node_modules/
+npm-debug.log

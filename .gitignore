@@ -52,3 +52,31 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# Secrets and environment
+*.env
+*.env.*
+secrets/
+
+# IDE files
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+*.user
+*.suo
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test coverage
+*.coverage
+*.coveragexml
+coverage/
+
+# NuGet packages directory
+packages/
+.nuget/
