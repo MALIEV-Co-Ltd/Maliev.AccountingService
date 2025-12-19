@@ -1,4 +1,4 @@
-﻿namespace Maliev.AccountingService.Tests;
+namespace Maliev.AccountingService.Tests;
 
 public class UnitTest1
 {
