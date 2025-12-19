@@ -57,9 +57,6 @@ nunit-*.xml
 *.env
 *.env.*
 secrets/
-appsettings.*.json
-!appsettings.json
-!appsettings.Development.json
 
 # IDE files
 .vs/
@@ -69,6 +66,7 @@ appsettings.*.json
 *.swo
 *.user
 *.suo
+*.log
 
 # OS files
 .DS_Store
@@ -82,6 +80,3 @@ coverage/
 # NuGet packages directory
 packages/
 .nuget/
-
-# Specs directory (not source code)
-specs/

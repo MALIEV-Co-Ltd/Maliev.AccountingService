@@ -11,16 +11,17 @@ EXPOSE 8081
 # This stage is used to build the service project
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
-WORKDIR /source
-COPY ["src/Maliev.AccountingService.Api/Maliev.AccountingService.Api.csproj", "src/Maliev.AccountingService.Api/"]
+WORKDIR /src
+COPY ["Maliev.AccountingService.Api/Maliev.AccountingService.Api.csproj", "Maliev.AccountingService.Api/"]
+COPY ["Maliev.AccountingService.Data/Maliev.AccountingService.Data.csproj", "Maliev.AccountingService.Data/"]
 COPY ["nuget.config", "."]
 RUN --mount=type=secret,id=nuget_username \
-    --mount=type=secret,id=nuget_password \
-    NUGET_USERNAME=$(cat /run/secrets/nuget_username) \
-    NUGET_PASSWORD=$(cat /run/secrets/nuget_password) \
-    dotnet restore "./src/Maliev.AccountingService.Api/Maliev.AccountingService.Api.csproj"
-COPY src/ src/
-WORKDIR "/source/src/Maliev.AccountingService.Api"
+  --mount=type=secret,id=nuget_password \
+  NUGET_USERNAME=$(cat /run/secrets/nuget_username) \
+  NUGET_PASSWORD=$(cat /run/secrets/nuget_password) \
+  dotnet restore "./Maliev.AccountingService.Api/Maliev.AccountingService.Api.csproj"
+COPY . .
+WORKDIR "/src/Maliev.AccountingService.Api"
 RUN dotnet build "./Maliev.AccountingService.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 # This stage is used to publish the service project to be copied to the final stage
@@ -47,6 +48,6 @@ ENV ASPNETCORE_ENVIRONMENT=Production
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8080/accounting/liveness || exit 1
+  CMD curl -f http://localhost:8080/accounting/liveness || exit 1
 
 ENTRYPOINT ["dotnet", "Maliev.AccountingService.Api.dll"]
