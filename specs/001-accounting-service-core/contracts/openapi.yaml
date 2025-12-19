@@ -1,0 +1,247 @@
+# Condensed OpenAPI spec - Full spec will be generated from Scalar during implementation
+openapi: 3.0.3
+info:
+  title: Maliev Accounting Service API
+  version: 1.0.0
+  description: |
+    Core accounting service providing double-entry bookkeeping, financial reporting,
+    tax tracking, and reconciliation for the MALIEV microservice ecosystem.
+servers:
+  - url: https://api.maliev.com/accounting/v1
+    description: Production
+  - url: https://localhost:5001/api/v1
+    description: Local Development
+
+security:
+  - BearerAuth: []
+
+paths:
+  # Chart of Accounts
+  /chart-of-accounts:
+    get:
+      summary: List chart of accounts
+      operationId: listChartOfAccounts
+      tags: [Chart of Accounts]
+      parameters:
+        - name: type
+          in: query
+          schema: { type: string, enum: [Asset, Liability, Equity, Revenue, Expense] }
+        - name: isActive
+          in: query
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: List of accounts
+    post:
+      summary: Create account
+      operationId: createChartOfAccount
+      tags: [Chart of Accounts]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [accountNumber, name, type]
+              properties:
+                accountNumber: { type: string, example: "1200" }
+                name: { type: string, example: "Accounts Receivable" }
+                type: { type: string, enum: [Asset, Liability, Equity, Revenue, Expense] }
+                category: { type: string, example: "Current Assets" }
+                parentAccountId: { type: string, format: uuid, nullable: true }
+      responses:
+        '201':
+          description: Account created
+
+  # Journal Entries
+  /journal-entries:
+    get:
+      summary: Query journal entries
+      operationId: listJournalEntries
+      tags: [Journal Entries]
+      parameters:
+        - name: periodId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          schema: { type: string, enum: [Draft, Posted] }
+        - name: fromDate
+          in: query
+          schema: { type: string, format: date }
+        - name: toDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: List of journal entries
+    post:
+      summary: Create draft journal entry
+      operationId: createJournalEntry
+      tags: [Journal Entries]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [periodId, entryDate, description, lines]
+              properties:
+                periodId: { type: string, format: uuid }
+                entryDate: { type: string, format: date }
+                description: { type: string }
+                lines:
+                  type: array
+                  minItems: 2
+                  items:
+                    type: object
+                    required: [accountId, debitAmount, creditAmount]
+                    properties:
+                      accountId: { type: string, format: uuid }
+                      description: { type: string }
+                      debitAmount: { type: number, format: decimal, minimum: 0 }
+                      creditAmount: { type: number, format: decimal, minimum: 0 }
+      responses:
+        '201':
+          description: Draft entry created
+        '400':
+          description: Validation error (unbalanced entry)
+
+  /journal-entries/{id}/post:
+    post:
+      summary: Post journal entry to ledger
+      operationId: postJournalEntry
+      tags: [Journal Entries]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Entry posted successfully
+        '409':
+          description: Period closed or entry already posted
+
+  # Financial Periods
+  /periods:
+    post:
+      summary: Create financial period
+      operationId: createFinancialPeriod
+      tags: [Periods]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fiscalYearId, name, startDate, endDate]
+              properties:
+                fiscalYearId: { type: string, format: uuid }
+                name: { type: string, example: "January 2025" }
+                startDate: { type: string, format: date }
+                endDate: { type: string, format: date }
+      responses:
+        '201':
+          description: Period created
+
+  /periods/{id}/close:
+    post:
+      summary: Close financial period
+      operationId: closeFinancialPeriod
+      tags: [Periods]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Period closed successfully
+        '400':
+          description: Draft entries exist or period already closed
+
+  # Reconciliation
+  /reconciliation:
+    post:
+      summary: Run reconciliation
+      operationId: runReconciliation
+      tags: [Reconciliation]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [periodId, reconciliationType]
+              properties:
+                periodId: { type: string, format: uuid }
+                reconciliationType: { type: string, enum: [Accounts_Receivable, Accounts_Payable, Inventory] }
+      responses:
+        '200':
+          description: Reconciliation completed
+
+  # Financial Reports
+  /reports/trial-balance:
+    get:
+      summary: Generate trial balance
+      operationId: getTrialBalance
+      tags: [Reports]
+      parameters:
+        - name: periodId
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Trial balance report
+
+  /reports/balance-sheet:
+    get:
+      summary: Generate balance sheet
+      operationId: getBalanceSheet
+      tags: [Reports]
+      parameters:
+        - name: asOfDate
+          in: query
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Balance sheet report
+
+  /reports/income-statement:
+    get:
+      summary: Generate income statement
+      operationId: getIncomeStatement
+      tags: [Reports]
+      parameters:
+        - name: periodId
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Income statement report
+
+  # Tax Reporting
+  /tax/vat-report:
+    get:
+      summary: Generate VAT report
+      operationId: getVATReport
+      tags: [Tax]
+      parameters:
+        - name: periodId
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: VAT report with output/input tax totals
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
