@@ -25,7 +25,7 @@ public class ChartOfAccountsHierarchyTests : BaseIntegrationTest
         // Arrange - Create parent account
         var parentRequest = new CreateChartOfAccountRequest
         {
-            AccountNumber = $"PARENT-{Guid.NewGuid().ToString()[..8]}",
+            AccountNumber = $"PARENT-{Guid.NewGuid().ToString()[..8].ToUpperInvariant()}",
             Name = "Parent Asset Account",
             Type = "Asset",
             Category = "Parent"
@@ -40,7 +40,7 @@ public class ChartOfAccountsHierarchyTests : BaseIntegrationTest
             // Create child account with same type
             var childRequest = new CreateChartOfAccountRequest
             {
-                AccountNumber = $"CHILD-{Guid.NewGuid().ToString()[..8]}",
+                AccountNumber = $"CHILD-{Guid.NewGuid().ToString()[..8].ToUpperInvariant()}",
                 Name = "Child Asset Account",
                 Type = "Asset",
                 Category = "Child",
@@ -69,7 +69,7 @@ public class ChartOfAccountsHierarchyTests : BaseIntegrationTest
         var nonExistentParentId = Guid.NewGuid();
         var request = new CreateChartOfAccountRequest
         {
-            AccountNumber = $"ORPHAN-{Guid.NewGuid().ToString()[..8]}",
+            AccountNumber = $"ORPHAN-{Guid.NewGuid().ToString()[..8].ToUpperInvariant()}",
             Name = "Orphan Account",
             Type = "Asset",
             Category = "Test",
@@ -141,7 +141,7 @@ public class ChartOfAccountsHierarchyTests : BaseIntegrationTest
         // Arrange - Create grandparent
         var grandparentRequest = new CreateChartOfAccountRequest
         {
-            AccountNumber = $"GP-{Guid.NewGuid().ToString()[..8]}",
+            AccountNumber = $"GP-{Guid.NewGuid().ToString()[..8].ToUpperInvariant()}",
             Name = "Grandparent",
             Type = "Equity",
             Category = "Top Level"
@@ -185,7 +185,7 @@ public class ChartOfAccountsHierarchyTests : BaseIntegrationTest
         // Arrange
         var createRequest = new CreateChartOfAccountRequest
         {
-            AccountNumber = $"DESC-UPDATE-{Guid.NewGuid().ToString()[..8]}",
+            AccountNumber = $"DESC-UPDATE-{Guid.NewGuid().ToString()[..8].ToUpperInvariant()}",
             Name = "Account to Update Description",
             Type = "Asset",
             Category = "Test",
@@ -225,7 +225,7 @@ public class ChartOfAccountsHierarchyTests : BaseIntegrationTest
         // Arrange - Create parent account
         var parentRequest = new CreateChartOfAccountRequest
         {
-            AccountNumber = $"DETAIL-PARENT-{Guid.NewGuid().ToString()[..8]}",
+            AccountNumber = $"DETAIL-PARENT-{Guid.NewGuid().ToString()[..8].ToUpperInvariant()}",
             Name = "Detailed Parent",
             Type = "Asset",
             Category = "Test",
@@ -278,7 +278,7 @@ public class ChartOfAccountsHierarchyTests : BaseIntegrationTest
         {
             var request = new CreateChartOfAccountRequest
             {
-                AccountNumber = $"TYPE-{index++}-{Guid.NewGuid().ToString()[..6]}",
+                AccountNumber = $"TYPE-{index++}-{Guid.NewGuid().ToString()[..6].ToUpperInvariant()}",
                 Name = $"{type} Account",
                 Type = type,
                 Category = "Test"

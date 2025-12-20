@@ -153,7 +153,7 @@ public class ErrorHandlingTests : BaseIntegrationTest
         // Arrange - Create parent asset account with unique number to avoid conflicts
         var parentRequest = new CreateChartOfAccountRequest
         {
-            AccountNumber = $"PAR-{Guid.NewGuid().ToString()[..8]}",
+            AccountNumber = $"PAR-{Guid.NewGuid().ToString()[..8].ToUpperInvariant()}",
             Name = "Assets Parent",
             Type = "Asset",
             Category = "Assets"
@@ -169,7 +169,7 @@ public class ErrorHandlingTests : BaseIntegrationTest
             // Try to create liability child under asset parent
             var childRequest = new CreateChartOfAccountRequest
             {
-                AccountNumber = $"CHI-{Guid.NewGuid().ToString()[..8]}",
+                AccountNumber = $"CHI-{Guid.NewGuid().ToString()[..8].ToUpperInvariant()}",
                 Name = "Liability Child",
                 Type = "Liability", // Different type!
                 Category = "Liabilities",
@@ -621,7 +621,7 @@ public class ErrorHandlingTests : BaseIntegrationTest
         // Arrange - Create account with specific number
         var createRequest = new CreateChartOfAccountRequest
         {
-            AccountNumber = "CasE-001",
+            AccountNumber = "CASE-001",
             Name = "Case Sensitive Test",
             Type = "Asset",
             Category = "Test"
