@@ -80,3 +80,10 @@ coverage/
 # NuGet packages directory
 packages/
 .nuget/
+
+.claude/settings.local.json
+.gemini/settings.local.json
+# Test Outputs
+*test-output.txt
+*_error.txt
+
