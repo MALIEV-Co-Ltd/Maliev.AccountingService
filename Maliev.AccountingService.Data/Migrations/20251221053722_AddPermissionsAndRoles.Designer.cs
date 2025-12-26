@@ -3,6 +3,7 @@ using System;
 using Maliev.AccountingService.Data.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Maliev.AccountingService.Data.Migrations
 {
     [DbContext(typeof(AccountingDbContext))]
-    partial class AccountingDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251221053722_AddPermissionsAndRoles")]
+    partial class AddPermissionsAndRoles
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -767,27 +770,27 @@ namespace Maliev.AccountingService.Data.Migrations
                     b.HasData(
                         new
                         {
-                            Name = "roles.accounting.admin",
+                            Name = "accounting-admin",
                             Description = "Full access to all accounting operations"
                         },
                         new
                         {
-                            Name = "roles.accounting.manager",
+                            Name = "accounting-manager",
                             Description = "General accounting management access"
                         },
                         new
                         {
-                            Name = "roles.accounting.clerk",
+                            Name = "accounting-clerk",
                             Description = "Basic journal and account data entry"
                         },
                         new
                         {
-                            Name = "roles.accounting.controller",
+                            Name = "accounting-controller",
                             Description = "Advanced accounting and period management"
                         },
                         new
                         {
-                            Name = "roles.accounting.viewer",
+                            Name = "accounting-viewer",
                             Description = "Read-only access to accounting data and reports"
                         });
                 });
@@ -815,337 +818,337 @@ namespace Maliev.AccountingService.Data.Migrations
                     b.HasData(
                         new
                         {
-                            RoleName = "roles.accounting.admin",
+                            RoleName = "accounting-admin",
                             PermissionCode = "accounting.journal-entries.create"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.admin",
+                            RoleName = "accounting-admin",
                             PermissionCode = "accounting.journal-entries.read"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.admin",
+                            RoleName = "accounting-admin",
                             PermissionCode = "accounting.journal-entries.update"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.admin",
+                            RoleName = "accounting-admin",
                             PermissionCode = "accounting.journal-entries.post"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.admin",
+                            RoleName = "accounting-admin",
                             PermissionCode = "accounting.journal-entries.reverse"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.admin",
+                            RoleName = "accounting-admin",
                             PermissionCode = "accounting.accounts.create"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.admin",
+                            RoleName = "accounting-admin",
                             PermissionCode = "accounting.accounts.read"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.admin",
+                            RoleName = "accounting-admin",
                             PermissionCode = "accounting.accounts.update"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.admin",
+                            RoleName = "accounting-admin",
                             PermissionCode = "accounting.accounts.delete"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.admin",
+                            RoleName = "accounting-admin",
                             PermissionCode = "accounting.accounts.close"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.admin",
+                            RoleName = "accounting-admin",
                             PermissionCode = "accounting.reports.balance-sheet"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.admin",
+                            RoleName = "accounting-admin",
                             PermissionCode = "accounting.reports.income-statement"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.admin",
+                            RoleName = "accounting-admin",
                             PermissionCode = "accounting.reports.cash-flow"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.admin",
+                            RoleName = "accounting-admin",
                             PermissionCode = "accounting.reports.trial-balance"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.admin",
+                            RoleName = "accounting-admin",
                             PermissionCode = "accounting.reports.export"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.admin",
+                            RoleName = "accounting-admin",
                             PermissionCode = "accounting.periods.open"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.admin",
+                            RoleName = "accounting-admin",
                             PermissionCode = "accounting.periods.close"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.admin",
+                            RoleName = "accounting-admin",
                             PermissionCode = "accounting.periods.reopen"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.manager",
+                            RoleName = "accounting-manager",
                             PermissionCode = "accounting.journal-entries.create"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.manager",
+                            RoleName = "accounting-manager",
                             PermissionCode = "accounting.journal-entries.read"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.manager",
+                            RoleName = "accounting-manager",
                             PermissionCode = "accounting.journal-entries.update"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.manager",
+                            RoleName = "accounting-manager",
                             PermissionCode = "accounting.journal-entries.post"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.manager",
+                            RoleName = "accounting-manager",
                             PermissionCode = "accounting.journal-entries.reverse"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.manager",
+                            RoleName = "accounting-manager",
                             PermissionCode = "accounting.accounts.create"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.manager",
+                            RoleName = "accounting-manager",
                             PermissionCode = "accounting.accounts.read"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.manager",
+                            RoleName = "accounting-manager",
                             PermissionCode = "accounting.accounts.update"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.manager",
+                            RoleName = "accounting-manager",
                             PermissionCode = "accounting.accounts.delete"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.manager",
+                            RoleName = "accounting-manager",
                             PermissionCode = "accounting.accounts.close"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.manager",
+                            RoleName = "accounting-manager",
                             PermissionCode = "accounting.reports.balance-sheet"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.manager",
+                            RoleName = "accounting-manager",
                             PermissionCode = "accounting.reports.income-statement"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.manager",
+                            RoleName = "accounting-manager",
                             PermissionCode = "accounting.reports.cash-flow"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.manager",
+                            RoleName = "accounting-manager",
                             PermissionCode = "accounting.reports.trial-balance"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.manager",
+                            RoleName = "accounting-manager",
                             PermissionCode = "accounting.reports.export"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.manager",
+                            RoleName = "accounting-manager",
                             PermissionCode = "accounting.periods.open"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.clerk",
+                            RoleName = "accounting-clerk",
                             PermissionCode = "accounting.journal-entries.create"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.clerk",
+                            RoleName = "accounting-clerk",
                             PermissionCode = "accounting.journal-entries.read"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.clerk",
+                            RoleName = "accounting-clerk",
                             PermissionCode = "accounting.accounts.read"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.clerk",
+                            RoleName = "accounting-clerk",
                             PermissionCode = "accounting.reports.balance-sheet"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.clerk",
+                            RoleName = "accounting-clerk",
                             PermissionCode = "accounting.reports.income-statement"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.clerk",
+                            RoleName = "accounting-clerk",
                             PermissionCode = "accounting.reports.cash-flow"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.clerk",
+                            RoleName = "accounting-clerk",
                             PermissionCode = "accounting.reports.trial-balance"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.clerk",
+                            RoleName = "accounting-clerk",
                             PermissionCode = "accounting.reports.export"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.controller",
+                            RoleName = "accounting-controller",
                             PermissionCode = "accounting.journal-entries.create"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.controller",
+                            RoleName = "accounting-controller",
                             PermissionCode = "accounting.journal-entries.read"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.controller",
+                            RoleName = "accounting-controller",
                             PermissionCode = "accounting.journal-entries.update"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.controller",
+                            RoleName = "accounting-controller",
                             PermissionCode = "accounting.journal-entries.post"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.controller",
+                            RoleName = "accounting-controller",
                             PermissionCode = "accounting.journal-entries.reverse"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.controller",
+                            RoleName = "accounting-controller",
                             PermissionCode = "accounting.accounts.create"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.controller",
+                            RoleName = "accounting-controller",
                             PermissionCode = "accounting.accounts.read"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.controller",
+                            RoleName = "accounting-controller",
                             PermissionCode = "accounting.accounts.update"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.controller",
+                            RoleName = "accounting-controller",
                             PermissionCode = "accounting.accounts.delete"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.controller",
+                            RoleName = "accounting-controller",
                             PermissionCode = "accounting.accounts.close"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.controller",
+                            RoleName = "accounting-controller",
                             PermissionCode = "accounting.reports.balance-sheet"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.controller",
+                            RoleName = "accounting-controller",
                             PermissionCode = "accounting.reports.income-statement"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.controller",
+                            RoleName = "accounting-controller",
                             PermissionCode = "accounting.reports.cash-flow"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.controller",
+                            RoleName = "accounting-controller",
                             PermissionCode = "accounting.reports.trial-balance"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.controller",
+                            RoleName = "accounting-controller",
                             PermissionCode = "accounting.reports.export"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.controller",
+                            RoleName = "accounting-controller",
                             PermissionCode = "accounting.periods.open"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.controller",
+                            RoleName = "accounting-controller",
                             PermissionCode = "accounting.periods.close"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.controller",
+                            RoleName = "accounting-controller",
                             PermissionCode = "accounting.periods.reopen"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.viewer",
+                            RoleName = "accounting-viewer",
                             PermissionCode = "accounting.journal-entries.read"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.viewer",
+                            RoleName = "accounting-viewer",
                             PermissionCode = "accounting.accounts.read"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.viewer",
+                            RoleName = "accounting-viewer",
                             PermissionCode = "accounting.reports.balance-sheet"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.viewer",
+                            RoleName = "accounting-viewer",
                             PermissionCode = "accounting.reports.income-statement"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.viewer",
+                            RoleName = "accounting-viewer",
                             PermissionCode = "accounting.reports.cash-flow"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.viewer",
+                            RoleName = "accounting-viewer",
                             PermissionCode = "accounting.reports.trial-balance"
                         },
                         new
                         {
-                            RoleName = "roles.accounting.viewer",
+                            RoleName = "accounting-viewer",
                             PermissionCode = "accounting.reports.export"
                         });
                 });

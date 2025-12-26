@@ -1,0 +1,276 @@
+using CsvHelper;
+using CsvHelper.Configuration;
+using Maliev.AccountingService.Api.Models;
+using Maliev.AccountingService.Data.Data;
+using Maliev.AccountingService.Data.Models;
+using Microsoft.EntityFrameworkCore;
+using System.Globalization;
+using System.Text.Json;
+
+namespace Maliev.AccountingService.Api.Services;
+
+/// <summary>
+/// Service for bulk importing chart of accounts and opening balances from CSV/JSON files
+/// </summary>
+public class BulkImportService : IBulkImportService
+{
+    private readonly AccountingDbContext _dbContext;
+    private readonly ILogger<BulkImportService> _logger;
+
+    public BulkImportService(AccountingDbContext dbContext, ILogger<BulkImportService> logger)
+    {
+        _dbContext = dbContext;
+        _logger = logger;
+    }
+
+    public async Task<BulkImportResult> ImportChartOfAccountsAsync(Stream stream, string fileName, bool dryRun = false)
+    {
+        var result = new BulkImportResult();
+
+        try
+        {
+            _logger.LogInformation("Importing chart of accounts from file: {FileName}, DryRun: {DryRun}", fileName, dryRun);
+
+            // Parse file based on extension
+            var accounts = Path.GetExtension(fileName).ToLowerInvariant() switch
+            {
+                ".csv" => ReadAccountsFromCsv(stream),
+                ".json" => ReadAccountsFromJson(stream),
+                _ => throw new NotSupportedException($"File format {Path.GetExtension(fileName)} not supported. Use .csv or .json")
+            };
+
+            result.TotalRecords = accounts.Count;
+            _logger.LogInformation("Found {Count} accounts to import", accounts.Count);
+
+            // Validate accounts
+            var accountNumbers = new HashSet<string>();
+
+            foreach (var account in accounts)
+            {
+                if (string.IsNullOrWhiteSpace(account.AccountNumber))
+                    result.Errors.Add($"Account missing account number: {account.Name}");
+
+                if (accountNumbers.Contains(account.AccountNumber))
+                    result.Errors.Add($"Duplicate account number: {account.AccountNumber}");
+                else
+                    accountNumbers.Add(account.AccountNumber);
+
+                if (string.IsNullOrWhiteSpace(account.Name))
+                    result.Errors.Add($"Account {account.AccountNumber} missing name");
+            }
+
+            if (result.Errors.Any())
+            {
+                result.Success = false;
+                result.Summary = $"Validation failed with {result.Errors.Count} error(s)";
+                _logger.LogWarning("Validation failed with {ErrorCount} errors", result.Errors.Count);
+                return result;
+            }
+
+            _logger.LogInformation("Validation passed");
+
+            if (dryRun)
+            {
+                result.Success = true;
+                result.Summary = $"Dry run completed. {accounts.Count} accounts would be imported.";
+                return result;
+            }
+
+            // Import accounts
+            foreach (var account in accounts)
+            {
+                var exists = await _dbContext.ChartOfAccounts
+                    .AnyAsync(a => a.AccountNumber == account.AccountNumber);
+
+                if (exists)
+                {
+                    result.SkippedRecords++;
+                    result.Warnings.Add($"Skipping {account.AccountNumber} (already exists)");
+                    continue;
+                }
+
+                _dbContext.ChartOfAccounts.Add(account);
+                result.ImportedRecords++;
+                _logger.LogDebug("Imported {AccountNumber} - {Name}", account.AccountNumber, account.Name);
+            }
+
+            await _dbContext.SaveChangesAsync();
+
+            result.Success = true;
+            result.Summary = $"Imported {result.ImportedRecords} accounts, skipped {result.SkippedRecords} existing accounts";
+            _logger.LogInformation("Import completed: {ImportedCount} imported, {SkippedCount} skipped",
+                result.ImportedRecords, result.SkippedRecords);
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during chart of accounts import");
+            result.Success = false;
+            result.Errors.Add($"Import failed: {ex.Message}");
+            result.Summary = "Import failed due to error";
+            return result;
+        }
+    }
+
+    public async Task<BulkImportResult> ImportOpeningBalancesAsync(Stream stream, string fileName, bool dryRun = false)
+    {
+        var result = new BulkImportResult();
+
+        try
+        {
+            _logger.LogInformation("Importing opening balances from file: {FileName}, DryRun: {DryRun}", fileName, dryRun);
+
+            // Parse file based on extension
+            var balances = Path.GetExtension(fileName).ToLowerInvariant() switch
+            {
+                ".csv" => ReadBalancesFromCsv(stream),
+                ".json" => ReadBalancesFromJson(stream),
+                _ => throw new NotSupportedException($"File format {Path.GetExtension(fileName)} not supported. Use .csv or .json")
+            };
+
+            result.TotalRecords = balances.Count;
+            _logger.LogInformation("Found {Count} opening balances to import", balances.Count);
+
+            // Validate balances
+            decimal totalDebits = 0;
+            decimal totalCredits = 0;
+
+            foreach (var balance in balances)
+            {
+                var account = await _dbContext.ChartOfAccounts
+                    .FirstOrDefaultAsync(a => a.AccountNumber == balance.AccountNumber);
+
+                if (account == null)
+                {
+                    result.Errors.Add($"Account not found: {balance.AccountNumber}");
+                    continue;
+                }
+
+                totalDebits += balance.DebitAmount;
+                totalCredits += balance.CreditAmount;
+            }
+
+            if (Math.Abs(totalDebits - totalCredits) > 0.01m)
+            {
+                result.Errors.Add($"Opening balances not balanced: Debits={totalDebits:F2}, Credits={totalCredits:F2}, Difference={totalDebits - totalCredits:F2}");
+            }
+
+            if (result.Errors.Any())
+            {
+                result.Success = false;
+                result.Summary = $"Validation failed with {result.Errors.Count} error(s)";
+                _logger.LogWarning("Validation failed with {ErrorCount} errors", result.Errors.Count);
+                return result;
+            }
+
+            _logger.LogInformation("Validation passed! Balanced: Debits={Debits:F2}, Credits={Credits:F2}", totalDebits, totalCredits);
+
+            if (dryRun)
+            {
+                result.Success = true;
+                result.Summary = $"Dry run completed. {balances.Count} opening balances validated. Balanced: DR={totalDebits:F2}, CR={totalCredits:F2}";
+                return result;
+            }
+
+            // Note: Actual import of opening balances requires creating journal entries
+            // This should be implemented based on business requirements
+            result.Success = false;
+            result.Errors.Add("Opening balances import is not yet implemented. Requires journal entry creation logic.");
+            result.Summary = $"Import failed: Feature not implemented. Validation completed for {balances.Count} opening balances (balanced: DR={totalDebits:F2}, CR={totalCredits:F2})";
+
+            _logger.LogWarning("Opening balances validated but not imported - journal entry creation not implemented");
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during opening balances import");
+            result.Success = false;
+            result.Errors.Add($"Import failed: {ex.Message}");
+            result.Summary = "Import failed due to error";
+            return result;
+        }
+    }
+
+    private List<ChartOfAccount> ReadAccountsFromCsv(Stream stream)
+    {
+        var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+        {
+            // Enable validation to prevent silent data corruption
+            // HeaderValidated can remain null as CSV headers may vary
+            HeaderValidated = null,
+            // Throw exception if required field is missing
+            MissingFieldFound = args =>
+            {
+                throw new InvalidDataException($"Missing required field '{string.Join(", ", args.HeaderNames ?? Array.Empty<string>())}' at index {args.Index} in CSV file");
+            }
+        };
+
+        using var reader = new StreamReader(stream);
+        using var csv = new CsvReader(reader, config);
+
+        var records = csv.GetRecords<ChartOfAccountCsvRecord>().ToList();
+
+        return records.Select(r => new ChartOfAccount
+        {
+            Id = Guid.NewGuid(),
+            AccountNumber = r.AccountNumber,
+            Name = r.Name,
+            Description = r.Description,
+            Type = Enum.Parse<AccountType>(r.Type, true),
+            Category = r.Category,
+            IsActive = r.IsActive ?? true,
+            CreatedAt = DateTime.UtcNow
+        }).ToList();
+    }
+
+    private List<ChartOfAccount> ReadAccountsFromJson(Stream stream)
+    {
+        using var reader = new StreamReader(stream);
+        var json = reader.ReadToEnd();
+
+        var records = JsonSerializer.Deserialize<List<ChartOfAccountJsonRecord>>(json)
+            ?? throw new InvalidOperationException("Failed to deserialize JSON");
+
+        return records.Select(r => new ChartOfAccount
+        {
+            Id = Guid.NewGuid(),
+            AccountNumber = r.AccountNumber,
+            Name = r.Name,
+            Description = r.Description,
+            Type = Enum.Parse<AccountType>(r.Type, true),
+            Category = r.Category,
+            IsActive = r.IsActive ?? true,
+            CreatedAt = DateTime.UtcNow
+        }).ToList();
+    }
+
+    private List<OpeningBalanceRecord> ReadBalancesFromCsv(Stream stream)
+    {
+        var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+        {
+            // Enable validation to prevent silent data corruption
+            // HeaderValidated can remain null as CSV headers may vary
+            HeaderValidated = null,
+            // Throw exception if required field is missing
+            MissingFieldFound = args =>
+            {
+                throw new InvalidDataException($"Missing required field '{string.Join(", ", args.HeaderNames ?? Array.Empty<string>())}' at index {args.Index} in CSV file");
+            }
+        };
+
+        using var reader = new StreamReader(stream);
+        using var csv = new CsvReader(reader, config);
+        return csv.GetRecords<OpeningBalanceRecord>().ToList();
+    }
+
+    private List<OpeningBalanceRecord> ReadBalancesFromJson(Stream stream)
+    {
+        using var reader = new StreamReader(stream);
+        var json = reader.ReadToEnd();
+
+        return JsonSerializer.Deserialize<List<OpeningBalanceRecord>>(json)
+            ?? throw new InvalidOperationException("Failed to deserialize JSON");
+    }
+}

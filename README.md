@@ -1,10 +1,10 @@
 # Maliev Accounting Service
 
-Central financial record management system for the MALIEV microservice ecosystem.
+Central financial record management system for the MALIEV microservice ecosystem, implementing double-entry bookkeeping, fiscal period management, and comprehensive financial reporting with full IAM integration.
 
-## Overview
+## Service Description
 
-The Accounting Service consolidates, interprets, and manages all financial records across MALIEV services. It serves as the central system of record for financial accounting data, ensuring that every transaction is captured, validated, and stored according to proper accounting principles.
+The Accounting Service consolidates, interprets, and manages all financial records across MALIEV services. It serves as the central system of record for financial accounting data, ensuring that every transaction is captured, validated, and stored according to Generally Accepted Accounting Principles (GAAP) with complete audit trails.
 
 ## Features
 
@@ -193,10 +193,102 @@ See [specs/001-accounting-service-core/data-model.md](specs/001-accounting-servi
 - `maliev.accounting.v1.period.closed`
 - `maliev.accounting.v1.reconciliation.completed`
 
+## IAM Integration
+
+### Required Permissions
+- `accounting.chart_of_accounts.read` - View chart of accounts
+- `accounting.chart_of_accounts.write` - Create/modify accounts
+- `accounting.journal_entries.read` - View journal entries
+- `accounting.journal_entries.write` - Create journal entries
+- `accounting.journal_entries.post` - Post entries to general ledger
+- `accounting.periods.read` - View fiscal periods
+- `accounting.periods.write` - Create/modify periods
+- `accounting.periods.close` - Close fiscal periods
+- `accounting.reports.read` - View financial reports
+
+### Predefined Roles
+- **Accountant**: Read/write access to journal entries and chart of accounts
+- **Controller**: Full access including period closures and reporting
+- **Auditor**: Read-only access to all accounting data
+
+## API Endpoints
+
+### Core Controllers
+- **ChartOfAccountsController** (`/v1/chart-of-accounts`) - Manage chart of accounts
+- **JournalEntriesController** (`/v1/journal-entries`) - Create and manage journal entries
+- **PeriodsController** (`/v1/periods`) - Fiscal period management
+- **ReportsController** (`/v1/reports`) - Financial reporting (trial balance, P&L, balance sheet)
+- **PermissionsController** (`/v1/permissions`) - IAM permission registration
+
+## Configuration
+
+### appsettings.json
+```json
+{
+  "ConnectionStrings": {
+    "ServiceDbContext": "Host=postgres;Port=5432;Database=maliev_accounting;Username=app;Password=secret",
+    "Redis": "redis:6379",
+    "RabbitMQ": "amqp://guest:guest@rabbitmq:5672/"
+  },
+  "Jwt": {
+    "Secret": "your-secret-key-min-32-chars",
+    "Issuer": "maliev-accounting-service",
+    "Audience": "maliev-services"
+  },
+  "IAM": {
+    "BaseUrl": "http://iam-service:8080"
+  }
+}
+```
+
+## Database
+
+**PostgreSQL 18** with Entity Framework Core migrations.
+
+**Main Tables:**
+- `ChartOfAccounts` - Account master with hierarchy
+- `JournalEntries` - Entry headers
+- `JournalEntryLines` - Entry lines (debits/credits)
+- `FiscalPeriods` - Period definitions
+- `AccountBalances` - Materialized balances
+
+## Test Status
+
+**From Test Summary (2025-12-24):**
+- **Status**: FAILED (82 tests)
+- **Critical Issue**: Docker/Testcontainers timeout - Docker daemon not running
+- **Secondary Issue**: Database migration warnings
+
+**To Run Tests:**
+```bash
+# Ensure Docker is running
+docker ps
+
+# Run tests
+dotnet test
+
+# Apply migrations if needed
+dotnet ef database update --project Maliev.AccountingService.Data --startup-project Maliev.AccountingService.Api
+```
+
+## Key Features
+
+- **Double-Entry Bookkeeping**: Enforces balanced debits and credits
+- **Multi-Currency Support**: Integrates with Currency Service for exchange rates
+- **Fiscal Period Controls**: Prevent posting to closed periods
+- **Financial Reporting**: Real-time trial balance, P&L, balance sheet, cash flow
+- **Audit Trail**: Complete immutable history of all entries
+- **Performance Optimizations**: Redis caching, materialized balances
+
 ## Contributing
 
 See [specs/001-accounting-service-core/tasks.md](specs/001-accounting-service-core/tasks.md) for the complete implementation plan.
 
+## Support
+
+- Test Summary: `B:\maliev\all-services-test-summary.txt`
+- ServiceDefaults: `B:\maliev\Maliev.Aspire\Maliev.Aspire.ServiceDefaults\README.md`
+
 ## License
 
-Proprietary - MALIEV Organization
+Proprietary - Copyright 2025 MALIEV Co., Ltd. All rights reserved.
