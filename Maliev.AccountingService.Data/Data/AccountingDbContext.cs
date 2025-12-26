@@ -23,6 +23,9 @@ public class AccountingDbContext : DbContext
     public DbSet<ProcessedEventRegistry> ProcessedEventRegistry => Set<ProcessedEventRegistry>();
     public DbSet<ReconciliationReport> ReconciliationReports => Set<ReconciliationReport>();
     public DbSet<AdjustingEntryApproval> AdjustingEntryApprovals => Set<AdjustingEntryApproval>();
+    public DbSet<Permission> Permissions => Set<Permission>();
+    public DbSet<Role> Roles => Set<Role>();
+    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -180,6 +183,46 @@ public class AccountingDbContext : DbContext
             entity.HasIndex(e => e.JournalEntryId).IsUnique();
             entity.HasIndex(e => e.Status);
         });
+
+        // Configure Permission
+        modelBuilder.Entity<Permission>(entity =>
+        {
+            entity.ToTable("permissions");
+            entity.HasKey(e => e.Code);
+            entity.Property(e => e.Code).HasMaxLength(100);
+            entity.Property(e => e.Description).HasMaxLength(255).IsRequired();
+        });
+
+        // Configure Role
+        modelBuilder.Entity<Role>(entity =>
+        {
+            entity.ToTable("roles");
+            entity.HasKey(e => e.Name);
+            entity.Property(e => e.Name).HasMaxLength(50);
+            entity.Property(e => e.Description).HasMaxLength(255).IsRequired();
+        });
+
+        // Configure RolePermission
+        modelBuilder.Entity<RolePermission>(entity =>
+        {
+            entity.ToTable("role_permissions");
+            entity.HasKey(e => new { e.RoleName, e.PermissionCode });
+
+            entity.HasOne(e => e.Role)
+                .WithMany(e => e.RolePermissions)
+                .HasForeignKey(e => e.RoleName)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Permission)
+                .WithMany(e => e.RolePermissions)
+                .HasForeignKey(e => e.PermissionCode)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Seed Authorization Data
+        modelBuilder.Entity<Permission>().HasData(AccountingPermissions.GetPermissions());
+        modelBuilder.Entity<Role>().HasData(AccountingPredefinedRoles.GetRoles());
+        modelBuilder.Entity<RolePermission>().HasData(AccountingPredefinedRoles.GetRolePermissions());
 
         // Apply PostgreSQL snake_case naming convention globally
         SnakeCaseNamingHelper.ApplySnakeCaseNaming(modelBuilder);

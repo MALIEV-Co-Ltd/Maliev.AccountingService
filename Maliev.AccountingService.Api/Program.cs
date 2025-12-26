@@ -1,5 +1,7 @@
-using Maliev.AccountingService.Api.Middleware;
+using Maliev.AccountingService.Api.Services;
 using Maliev.AccountingService.Data.Data;
+using Maliev.Aspire.ServiceDefaults;
+using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,11 +10,15 @@ builder.AddGoogleSecretManagerVolume(); // Load secrets from /mnt/secrets if ava
 
 // --- Infrastructure & Observability ---
 builder.AddServiceDefaults(); // OpenTelemetry, health checks, resilience
+builder.AddStandardMiddleware(options =>
+{
+    options.EnableRequestLogging = true;
+});
 builder.AddServiceMeters("accounting-meter"); // Register service meters for OpenTelemetry business metrics
 
 // Database Context with ServiceDefaults
 builder.AddPostgresDbContext<AccountingDbContext>(
-    connectionStringName: "AccountingDbContext");
+    connectionName: "AccountingDbContext");
 
 builder.AddRedisDistributedCache(instanceName: "accounting:"); // Redis with in-memory fallback
 builder.AddMassTransitWithRabbitMq(x =>
@@ -35,23 +41,16 @@ builder.AddJwtAuthentication();
 // Add OpenAPI (must be in Program.cs for XML comments to work via source generator)
 if (!builder.Environment.IsProduction())
 {
-    builder.Services.AddEndpointsApiExplorer();
-    builder.Services.AddOpenApi("v1", options =>
-    {
-        options.AddDocumentTransformer((document, context, cancellationToken) =>
-        {
-            document.Info.Title = "MALIEV Accounting Service API";
-            document.Info.Version = "v1";
-            document.Info.Description = "Double-entry accounting service. Handles chart of accounts, journal entries, general ledger, financial periods, audit trails, reconciliations, and event-sourced transaction processing from other services.";
-            return Task.CompletedTask;
-        });
-    });
+    builder.AddStandardOpenApi(
+        title: "MALIEV Accounting Service API",
+        description: "Double-entry accounting service. Handles chart of accounts, journal entries, general ledger, financial periods, audit trails, reconciliations, and event-sourced transaction processing from other services.");
 }
 
 builder.Services.AddControllers();
 builder.Services.AddMemoryCache();
 
 // Register application services
+builder.AddIAMServiceClient();
 builder.Services.AddScoped<Maliev.AccountingService.Api.Services.IEventProcessingService,
     Maliev.AccountingService.Api.Services.EventProcessingService>();
 builder.Services.AddScoped<Maliev.AccountingService.Api.Services.IEventIdempotencyService,
@@ -60,6 +59,16 @@ builder.Services.AddScoped<Maliev.AccountingService.Api.Services.IAuditService,
     Maliev.AccountingService.Api.Services.AuditService>();
 builder.Services.AddScoped<Maliev.AccountingService.Api.Services.IChartOfAccountsService,
     Maliev.AccountingService.Api.Services.ChartOfAccountsService>();
+builder.Services.AddScoped<Maliev.AccountingService.Api.Services.IBulkImportService,
+    Maliev.AccountingService.Api.Services.BulkImportService>();
+
+// Authorization Infrastructure
+builder.Services.AddPermissionAuthorization();
+
+// IAM Registration
+// Note: IHttpClientFactory is already registered by ASP.NET Core framework in .NET 6+
+// No need for explicit AddHttpClient() call - IAMRegistrationService uses IHttpClientFactory
+builder.Services.AddIAMRegistration<AccountingIAMRegistrationService>();
 
 // Register metrics
 builder.Services.AddSingleton<Maliev.AccountingService.Api.Metrics.AccountingMetrics>();
@@ -82,7 +91,7 @@ if (!app.Environment.IsEnvironment("Testing"))
 }
 
 // Middleware Pipeline
-app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseStandardMiddleware();
 
 app.UseHttpsRedirection();
 app.UseCors();

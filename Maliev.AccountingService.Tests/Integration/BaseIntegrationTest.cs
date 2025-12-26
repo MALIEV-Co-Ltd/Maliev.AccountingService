@@ -1,3 +1,5 @@
+using Maliev.AccountingService.Data.Data;
+
 namespace Maliev.AccountingService.Tests.Integration;
 
 /// <summary>
@@ -12,7 +14,15 @@ public abstract class BaseIntegrationTest : IClassFixture<IntegrationTestFixture
     protected BaseIntegrationTest(IntegrationTestFixture fixture)
     {
         Factory = fixture.WebAppFactory;
-        Client = Factory.CreateAuthenticatedClient(roles: new[] { "admin", "financial_controller", "accountant" });
+
+        var roles = new[] { "roles.accounting.admin", "roles.accounting.controller" };
+        var permissions = AccountingPredefinedRoles.GetRolePermissions()
+            .Where(rp => roles.Contains(rp.RoleName))
+            .Select(rp => rp.PermissionCode)
+            .Distinct()
+            .ToArray();
+
+        Client = Factory.CreateAuthenticatedClient(roles: roles, permissions: permissions);
     }
 
     public Task InitializeAsync() => Task.CompletedTask;

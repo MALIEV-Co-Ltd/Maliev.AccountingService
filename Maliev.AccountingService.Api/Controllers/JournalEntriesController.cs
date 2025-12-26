@@ -1,9 +1,11 @@
 using Maliev.AccountingService.Api.DTOs.Requests;
 using Maliev.AccountingService.Api.DTOs.Responses;
+using Asp.Versioning;
 using Maliev.AccountingService.Api.Extensions;
 using Maliev.AccountingService.Data.Data;
 using Maliev.AccountingService.Data.Models;
 using Maliev.AccountingService.Api.Services;
+using Maliev.Aspire.ServiceDefaults.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,6 +16,7 @@ namespace Maliev.AccountingService.Api.Controllers;
 /// Controller for managing journal entries
 /// </summary>
 [ApiController]
+[ApiVersion("1.0")]
 [Route("accounting/v{version:apiVersion}/journal-entries")]
 [Authorize]
 public class JournalEntriesController : ControllerBase
@@ -44,6 +47,7 @@ public class JournalEntriesController : ControllerBase
     /// <param name="pageNumber">Page number (default: 1)</param>
     /// <param name="pageSize">Page size (default: 50)</param>
     [HttpGet]
+    [RequirePermission("accounting.journal-entries.read")]
     public async Task<ActionResult<IEnumerable<JournalEntryResponse>>> GetJournalEntries(
         [FromQuery] DateTime? startDate,
         [FromQuery] DateTime? endDate,
@@ -109,6 +113,7 @@ public class JournalEntriesController : ControllerBase
     /// Get a specific journal entry by ID
     /// </summary>
     [HttpGet("{id}")]
+    [RequirePermission("accounting.journal-entries.read")]
     public async Task<ActionResult<JournalEntryResponse>> GetJournalEntry(Guid id)
     {
         var entry = await _context.JournalEntries
@@ -131,7 +136,7 @@ public class JournalEntriesController : ControllerBase
     /// Create a new draft journal entry
     /// </summary>
     [HttpPost]
-    [Authorize(Roles = "accountant,financial_controller")]
+    [RequirePermission("accounting.journal-entries.create")]
     public async Task<ActionResult<JournalEntryResponse>> CreateJournalEntry(
         [FromBody] CreateJournalEntryRequest request)
     {
@@ -259,7 +264,7 @@ public class JournalEntriesController : ControllerBase
     /// Post a draft journal entry to the ledger
     /// </summary>
     [HttpPost("{id}/post")]
-    [Authorize(Roles = "accountant,financial_controller")]
+    [RequirePermission("accounting.journal-entries.post")]
     public async Task<ActionResult<JournalEntryResponse>> PostJournalEntry(Guid id)
     {
         var entry = await _context.JournalEntries
