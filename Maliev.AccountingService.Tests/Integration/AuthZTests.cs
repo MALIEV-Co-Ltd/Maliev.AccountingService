@@ -65,9 +65,7 @@ public class AuthZTests : IClassFixture<TestWebApplicationFactory>
     public async Task CallProtectedEndpoint_WithInsufficientPermission_ReturnsForbidden()
     {
         // Arrange
-        var token = _factory.CreateTestJwtToken(roles: new[] { "unknown-role" });
-        var client = _factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var client = _factory.CreateAuthenticatedClient(roles: new[] { "unknown-role" });
 
         // Act
         var response = await client.GetAsync("/accounting/v1/chart-of-accounts");
@@ -84,9 +82,7 @@ public class AuthZTests : IClassFixture<TestWebApplicationFactory>
             .Where(rp => rp.RoleName == "roles.accounting.manager")
             .Select(rp => rp.PermissionCode)
             .ToArray();
-        var token = _factory.CreateTestJwtToken(roles: new[] { "accounting-manager" }, permissions: permissions);
-        var client = _factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var client = _factory.CreateAuthenticatedClient(roles: new[] { "accounting-manager" }, permissions: permissions);
 
         // Act
         var response = await client.GetAsync("/accounting/v1/periods");
@@ -103,9 +99,7 @@ public class AuthZTests : IClassFixture<TestWebApplicationFactory>
             .Where(rp => rp.RoleName == "roles.accounting.clerk")
             .Select(rp => rp.PermissionCode)
             .ToArray();
-        var token = _factory.CreateTestJwtToken(roles: new[] { "accounting-clerk" }, permissions: permissions);
-        var client = _factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var client = _factory.CreateAuthenticatedClient(roles: new[] { "accounting-clerk" }, permissions: permissions);
 
         // Act
         var response = await client.GetAsync("/accounting/v1/reports/balance-sheet");
@@ -122,9 +116,7 @@ public class AuthZTests : IClassFixture<TestWebApplicationFactory>
             .Where(rp => rp.RoleName == "roles.accounting.clerk")
             .Select(rp => rp.PermissionCode)
             .ToArray();
-        var token = _factory.CreateTestJwtToken(roles: new[] { "accounting-clerk" }, permissions: permissions);
-        var client = _factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var client = _factory.CreateAuthenticatedClient(roles: new[] { "accounting-clerk" }, permissions: permissions);
 
         // Act
         var response = await client.PostAsync($"/accounting/v1/periods/{Guid.NewGuid()}/close", null);
