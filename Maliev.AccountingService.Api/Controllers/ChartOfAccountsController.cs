@@ -2,6 +2,7 @@ using Maliev.AccountingService.Api.DTOs.Requests;
 using Maliev.AccountingService.Api.DTOs.Responses;
 using Asp.Versioning;
 using Maliev.AccountingService.Api.Services;
+using Maliev.AccountingService.Data.Data;
 using Maliev.Aspire.ServiceDefaults.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -35,7 +36,7 @@ public sealed class ChartOfAccountsController : ControllerBase
     /// <param name="includeInactive">Include deactivated accounts in results</param>
     /// <returns>List of chart of accounts</returns>
     [HttpGet]
-    [RequirePermission("accounting.accounts.read")]
+    [RequirePermission(AccountingPermissions.AccountsRead)]
     [ProducesResponseType(typeof(List<ChartOfAccountResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<List<ChartOfAccountResponse>>> GetAccounts(
         [FromQuery] string? accountType = null,
@@ -57,7 +58,7 @@ public sealed class ChartOfAccountsController : ControllerBase
     /// <param name="accountType">Optional filter by account type</param>
     /// <returns>Hierarchical list of chart of accounts</returns>
     [HttpGet("hierarchy")]
-    [RequirePermission("accounting.accounts.read")]
+    [RequirePermission(AccountingPermissions.AccountsRead)]
     [ProducesResponseType(typeof(List<ChartOfAccountResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<List<ChartOfAccountResponse>>> GetAccountHierarchy(
         [FromQuery] string? accountType = null)
@@ -77,7 +78,7 @@ public sealed class ChartOfAccountsController : ControllerBase
     /// <param name="id">Account ID</param>
     /// <returns>Chart of account details</returns>
     [HttpGet("{id:guid}")]
-    [RequirePermission("accounting.accounts.read")]
+    [RequirePermission(AccountingPermissions.AccountsRead)]
     [ProducesResponseType(typeof(ChartOfAccountResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ChartOfAccountResponse>> GetAccountById(Guid id)
@@ -100,7 +101,7 @@ public sealed class ChartOfAccountsController : ControllerBase
     /// <param name="accountNumber">Account number</param>
     /// <returns>Chart of account details</returns>
     [HttpGet("by-number/{accountNumber}")]
-    [RequirePermission("accounting.accounts.read")]
+    [RequirePermission(AccountingPermissions.AccountsRead)]
     [ProducesResponseType(typeof(ChartOfAccountResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ChartOfAccountResponse>> GetAccountByNumber(string accountNumber)
@@ -123,7 +124,7 @@ public sealed class ChartOfAccountsController : ControllerBase
     /// <param name="request">Account creation details</param>
     /// <returns>Created chart of account</returns>
     [HttpPost]
-    [RequirePermission("accounting.accounts.create")]
+    [RequirePermission(AccountingPermissions.AccountsCreate)]
     [ProducesResponseType(typeof(ChartOfAccountResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -163,7 +164,7 @@ public sealed class ChartOfAccountsController : ControllerBase
     /// <param name="request">Account update details</param>
     /// <returns>Updated chart of account</returns>
     [HttpPut("{id:guid}")]
-    [RequirePermission("accounting.accounts.update")]
+    [RequirePermission(AccountingPermissions.AccountsUpdate)]
     [ProducesResponseType(typeof(ChartOfAccountResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -201,7 +202,7 @@ public sealed class ChartOfAccountsController : ControllerBase
     /// <param name="id">Account ID</param>
     /// <returns>Success status</returns>
     [HttpDelete("{id:guid}")]
-    [RequirePermission("accounting.accounts.delete")]
+    [RequirePermission(AccountingPermissions.AccountsDelete)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -233,7 +234,7 @@ public sealed class ChartOfAccountsController : ControllerBase
     /// <param name="id">Account ID</param>
     /// <returns>Validation result</returns>
     [HttpGet("{id:guid}/can-deactivate")]
-    [RequirePermission("accounting.accounts.read")]
+    [RequirePermission(AccountingPermissions.AccountsRead)]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
     public async Task<ActionResult> ValidateDeactivation(Guid id)
     {

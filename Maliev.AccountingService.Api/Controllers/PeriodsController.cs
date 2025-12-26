@@ -25,7 +25,7 @@ public class PeriodsController : ControllerBase
     /// List all financial periods
     /// </summary>
     [HttpGet]
-    [RequirePermission("accounting.periods.open")] // Assuming open permission covers reading
+    [RequirePermission(AccountingPermissions.PeriodsOpen)] // Assuming open permission covers reading
     public async Task<IActionResult> GetPeriods()
     {
         var periods = await _dbContext.FinancialPeriods
@@ -48,7 +48,7 @@ public class PeriodsController : ControllerBase
     /// Open a new period (handled automatically by JournalEntries usually, but exposed here)
     /// </summary>
     [HttpPost("open")]
-    [RequirePermission("accounting.periods.open")]
+    [RequirePermission(AccountingPermissions.PeriodsOpen)]
     public IActionResult OpenPeriod()
     {
         return Ok(new { message = "Period opening logic not fully implemented in this migration" });
@@ -58,7 +58,7 @@ public class PeriodsController : ControllerBase
     /// Close an accounting period (Critical)
     /// </summary>
     [HttpPost("{id}/close")]
-    [RequirePermission("accounting.periods.close")]
+    [RequirePermission(AccountingPermissions.PeriodsClose)]
     public async Task<IActionResult> ClosePeriod(Guid id)
     {
         var period = await _dbContext.FinancialPeriods.FindAsync(id);
@@ -74,7 +74,7 @@ public class PeriodsController : ControllerBase
     /// Reopen a closed period (Critical)
     /// </summary>
     [HttpPost("{id}/reopen")]
-    [RequirePermission("accounting.periods.reopen")]
+    [RequirePermission(AccountingPermissions.PeriodsReopen)]
     public async Task<IActionResult> ReopenPeriod(Guid id)
     {
         var period = await _dbContext.FinancialPeriods.FindAsync(id);

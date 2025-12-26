@@ -47,7 +47,7 @@ public class JournalEntriesController : ControllerBase
     /// <param name="pageNumber">Page number (default: 1)</param>
     /// <param name="pageSize">Page size (default: 50)</param>
     [HttpGet]
-    [RequirePermission("accounting.journal-entries.read")]
+    [RequirePermission(AccountingPermissions.JournalEntriesRead)]
     public async Task<ActionResult<IEnumerable<JournalEntryResponse>>> GetJournalEntries(
         [FromQuery] DateTime? startDate,
         [FromQuery] DateTime? endDate,
@@ -113,7 +113,7 @@ public class JournalEntriesController : ControllerBase
     /// Get a specific journal entry by ID
     /// </summary>
     [HttpGet("{id}")]
-    [RequirePermission("accounting.journal-entries.read")]
+    [RequirePermission(AccountingPermissions.JournalEntriesRead)]
     public async Task<ActionResult<JournalEntryResponse>> GetJournalEntry(Guid id)
     {
         var entry = await _context.JournalEntries
@@ -136,7 +136,7 @@ public class JournalEntriesController : ControllerBase
     /// Create a new draft journal entry
     /// </summary>
     [HttpPost]
-    [RequirePermission("accounting.journal-entries.create")]
+    [RequirePermission(AccountingPermissions.JournalEntriesCreate)]
     public async Task<ActionResult<JournalEntryResponse>> CreateJournalEntry(
         [FromBody] CreateJournalEntryRequest request)
     {
@@ -264,7 +264,7 @@ public class JournalEntriesController : ControllerBase
     /// Post a draft journal entry to the ledger
     /// </summary>
     [HttpPost("{id}/post")]
-    [RequirePermission("accounting.journal-entries.post")]
+    [RequirePermission(AccountingPermissions.JournalEntriesPost)]
     public async Task<ActionResult<JournalEntryResponse>> PostJournalEntry(Guid id)
     {
         var entry = await _context.JournalEntries
