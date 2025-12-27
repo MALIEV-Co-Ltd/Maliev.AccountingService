@@ -24,7 +24,7 @@ public class ReportsController : ControllerBase
     /// Generate Balance Sheet
     /// </summary>
     [HttpGet("balance-sheet")]
-    [RequirePermission("accounting.reports.balance-sheet")]
+    [RequirePermission(AccountingPermissions.ReportsBalanceSheet)]
     public IActionResult GetBalanceSheet()
     {
         return Ok(new { message = "Balance Sheet logic not fully implemented in this migration" });
@@ -34,7 +34,7 @@ public class ReportsController : ControllerBase
     /// Generate Income Statement
     /// </summary>
     [HttpGet("income-statement")]
-    [RequirePermission("accounting.reports.income-statement")]
+    [RequirePermission(AccountingPermissions.ReportsIncomeStatement)]
     public IActionResult GetIncomeStatement()
     {
         return Ok(new { message = "Income Statement logic not fully implemented in this migration" });
@@ -44,7 +44,7 @@ public class ReportsController : ControllerBase
     /// Generate Cash Flow Statement
     /// </summary>
     [HttpGet("cash-flow")]
-    [RequirePermission("accounting.reports.cash-flow")]
+    [RequirePermission(AccountingPermissions.ReportsCashFlow)]
     public IActionResult GetCashFlow()
     {
         return Ok(new { message = "Cash Flow logic not fully implemented in this migration" });
@@ -54,7 +54,7 @@ public class ReportsController : ControllerBase
     /// Generate Trial Balance
     /// </summary>
     [HttpGet("trial-balance")]
-    [RequirePermission("accounting.reports.trial-balance")]
+    [RequirePermission(AccountingPermissions.ReportsTrialBalance)]
     public IActionResult GetTrialBalance()
     {
         return Ok(new { message = "Trial Balance logic not fully implemented in this migration" });
@@ -64,7 +64,7 @@ public class ReportsController : ControllerBase
     /// Export financial reports
     /// </summary>
     [HttpGet("export")]
-    [RequirePermission("accounting.reports.export")]
+    [RequirePermission(AccountingPermissions.ReportsExport)]
     public IActionResult ExportReports()
     {
         return Ok(new { message = "Export logic not fully implemented in this migration" });
