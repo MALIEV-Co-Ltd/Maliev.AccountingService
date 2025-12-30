@@ -1,4 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Diagnostics.CodeAnalysis;
 using MassTransit;
 using Microsoft.Extensions.Configuration;
 using System.Security.Claims;
@@ -228,6 +229,7 @@ public class BaseIntegrationTestFactory<TProgram, TDbContext> : WebApplicationFa
     /// Cleans all data from the database while preserving schema.
     /// Queries the database schema dynamically to get all tables.
     /// </summary>
+    [SuppressMessage("Security", "EF1002:Gaps in SQL queries", Justification = "Table names are retrieved from information_schema and are safe.")]
     public async Task CleanDatabaseAsync()
     {
         await using var context = CreateDbContext();
@@ -236,14 +238,14 @@ public class BaseIntegrationTestFactory<TProgram, TDbContext> : WebApplicationFa
         var tableNames = await context.Database
             .SqlQueryRaw<string>(
                 @"SELECT table_name
-                  FROM information_schema.tables
-                  WHERE table_schema = 'public'
-                  AND table_type = 'BASE TABLE'
-                  AND table_name != '__EFMigrationsHistory'
-                  AND table_name != 'permissions'
-                  AND table_name != 'roles'
-                  AND table_name != 'role_permissions'
-                  ORDER BY table_name")
+                   FROM information_schema.tables
+                   WHERE table_schema = 'public'
+                   AND table_type = 'BASE TABLE'
+                   AND table_name != '__EFMigrationsHistory'
+                   AND table_name != 'permissions'
+                   AND table_name != 'roles'
+                   AND table_name != 'role_permissions'
+                   ORDER BY table_name")
             .ToListAsync();
 
         // Truncate all tables (CASCADE handles foreign keys)
@@ -251,9 +253,7 @@ public class BaseIntegrationTestFactory<TProgram, TDbContext> : WebApplicationFa
         {
             try
             {
-#pragma warning disable EF1002
                 await context.Database.ExecuteSqlRawAsync($"TRUNCATE TABLE \"{tableName}\" RESTART IDENTITY CASCADE");
-#pragma warning restore EF1002
             }
             catch (Npgsql.PostgresException ex) when (ex.SqlState == "42P01")
             {
