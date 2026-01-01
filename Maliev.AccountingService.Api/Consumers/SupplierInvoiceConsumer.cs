@@ -13,6 +13,11 @@ public class SupplierInvoiceConsumer : IConsumer<SupplierInvoiceEvent>
     private readonly IEventProcessingService _eventProcessingService;
     private readonly ILogger<SupplierInvoiceConsumer> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SupplierInvoiceConsumer"/> class.
+    /// </summary>
+    /// <param name="eventProcessingService">The event processing service.</param>
+    /// <param name="logger">The logger.</param>
     public SupplierInvoiceConsumer(
         IEventProcessingService eventProcessingService,
         ILogger<SupplierInvoiceConsumer> logger)
@@ -21,6 +26,11 @@ public class SupplierInvoiceConsumer : IConsumer<SupplierInvoiceEvent>
         _logger = logger;
     }
 
+    /// <summary>
+    /// Consumes the <see cref="SupplierInvoiceEvent"/>.
+    /// </summary>
+    /// <param name="context">The consume context.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     public async Task Consume(ConsumeContext<SupplierInvoiceEvent> context)
     {
         using var activity = Activity.Current?.Source.StartActivity("ConsumeSupplierInvoice");

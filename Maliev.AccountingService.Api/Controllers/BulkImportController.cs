@@ -17,6 +17,11 @@ public class BulkImportController : ControllerBase
     private readonly IBulkImportService _bulkImportService;
     private readonly ILogger<BulkImportController> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="BulkImportController"/> class.
+    /// </summary>
+    /// <param name="bulkImportService">The bulk import service.</param>
+    /// <param name="logger">The logger.</param>
     public BulkImportController(IBulkImportService bulkImportService, ILogger<BulkImportController> logger)
     {
         _bulkImportService = bulkImportService;

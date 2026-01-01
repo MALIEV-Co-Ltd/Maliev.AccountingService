@@ -21,6 +21,11 @@ public sealed class ChartOfAccountsController : ControllerBase
     private readonly IChartOfAccountsService _chartOfAccountsService;
     private readonly ILogger<ChartOfAccountsController> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ChartOfAccountsController"/> class.
+    /// </summary>
+    /// <param name="chartOfAccountsService">The chart of accounts service.</param>
+    /// <param name="logger">The logger.</param>
     public ChartOfAccountsController(
         IChartOfAccountsService chartOfAccountsService,
         ILogger<ChartOfAccountsController> logger)

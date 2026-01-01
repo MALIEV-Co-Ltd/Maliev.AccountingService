@@ -17,12 +17,24 @@ public class BulkImportService : IBulkImportService
     private readonly AccountingDbContext _dbContext;
     private readonly ILogger<BulkImportService> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="BulkImportService"/> class.
+    /// </summary>
+    /// <param name="dbContext">The database context.</param>
+    /// <param name="logger">The logger.</param>
     public BulkImportService(AccountingDbContext dbContext, ILogger<BulkImportService> logger)
     {
         _dbContext = dbContext;
         _logger = logger;
     }
 
+    /// <summary>
+    /// Imports chart of accounts from a stream.
+    /// </summary>
+    /// <param name="stream">The file stream.</param>
+    /// <param name="fileName">The name of the file.</param>
+    /// <param name="dryRun">If true, only validates without importing.</param>
+    /// <returns>The result of the import operation.</returns>
     public async Task<BulkImportResult> ImportChartOfAccountsAsync(Stream stream, string fileName, bool dryRun = false)
     {
         var result = new BulkImportResult();
@@ -113,6 +125,13 @@ public class BulkImportService : IBulkImportService
         }
     }
 
+    /// <summary>
+    /// Imports opening balances from a stream.
+    /// </summary>
+    /// <param name="stream">The file stream.</param>
+    /// <param name="fileName">The name of the file.</param>
+    /// <param name="dryRun">If true, only validates without importing.</param>
+    /// <returns>The result of the import operation.</returns>
     public async Task<BulkImportResult> ImportOpeningBalancesAsync(Stream stream, string fileName, bool dryRun = false)
     {
         var result = new BulkImportResult();

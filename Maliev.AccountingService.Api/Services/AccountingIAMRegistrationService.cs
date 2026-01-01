@@ -9,6 +9,11 @@ namespace Maliev.AccountingService.Api.Services;
 /// </summary>
 public class AccountingIAMRegistrationService : IAMRegistrationService
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AccountingIAMRegistrationService"/> class.
+    /// </summary>
+    /// <param name="httpClientFactory">The HTTP client factory.</param>
+    /// <param name="logger">The logger.</param>
     public AccountingIAMRegistrationService(
         IHttpClientFactory httpClientFactory,
         ILogger<AccountingIAMRegistrationService> logger)
@@ -16,6 +21,10 @@ public class AccountingIAMRegistrationService : IAMRegistrationService
     {
     }
 
+    /// <summary>
+    /// Gets the list of permissions to register.
+    /// </summary>
+    /// <returns>A collection of permission registrations.</returns>
     protected override IEnumerable<PermissionRegistration> GetPermissions()
     {
         return AccountingPermissions.GetPermissions().Select(p => new PermissionRegistration
@@ -25,6 +34,10 @@ public class AccountingIAMRegistrationService : IAMRegistrationService
         });
     }
 
+    /// <summary>
+    /// Gets the list of predefined roles to register.
+    /// </summary>
+    /// <returns>A collection of role registrations.</returns>
     protected override IEnumerable<RoleRegistration> GetPredefinedRoles()
     {
         var rolePermissions = AccountingPredefinedRoles.GetRolePermissions().ToList();

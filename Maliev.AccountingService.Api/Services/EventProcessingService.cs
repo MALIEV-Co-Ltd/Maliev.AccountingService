@@ -33,6 +33,14 @@ public class EventProcessingService : IEventProcessingService
     private const string INSURANCE_PAYABLE_ACCOUNT = "2210"; // Insurance Payable
     private const string PENSION_PAYABLE_ACCOUNT = "2220"; // Pension Payable
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EventProcessingService"/> class.
+    /// </summary>
+    /// <param name="context">The database context.</param>
+    /// <param name="idempotencyService">The idempotency service.</param>
+    /// <param name="auditService">The audit service.</param>
+    /// <param name="logger">The logger.</param>
+    /// <param name="metrics">The metrics.</param>
     public EventProcessingService(
         AccountingDbContext context,
         IEventIdempotencyService idempotencyService,
@@ -47,6 +55,12 @@ public class EventProcessingService : IEventProcessingService
         _metrics = metrics;
     }
 
+    /// <summary>
+    /// Processes an invoice created event.
+    /// </summary>
+    /// <param name="event">The invoice created event.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The ID of the created journal entry.</returns>
     public async Task<Guid> ProcessInvoiceCreatedAsync(InvoiceCreatedEvent @event, CancellationToken cancellationToken = default)
     {
         var stopwatch = Stopwatch.StartNew();
@@ -249,6 +263,12 @@ public class EventProcessingService : IEventProcessingService
         });
     }
 
+    /// <summary>
+    /// Processes a payment received event.
+    /// </summary>
+    /// <param name="event">The payment received event.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The ID of the created journal entry.</returns>
     public async Task<Guid> ProcessPaymentReceivedAsync(PaymentReceivedEvent @event, CancellationToken cancellationToken = default)
     {
         using var activity = Activity.Current?.Source.StartActivity("ProcessPaymentReceived");
@@ -388,6 +408,12 @@ public class EventProcessingService : IEventProcessingService
         });
     }
 
+    /// <summary>
+    /// Processes a supplier invoice event.
+    /// </summary>
+    /// <param name="event">The supplier invoice event.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The ID of the created journal entry.</returns>
     public async Task<Guid> ProcessSupplierInvoiceAsync(SupplierInvoiceEvent @event, CancellationToken cancellationToken = default)
     {
         using var activity = Activity.Current?.Source.StartActivity("ProcessSupplierInvoice");
@@ -556,6 +582,12 @@ public class EventProcessingService : IEventProcessingService
         });
     }
 
+    /// <summary>
+    /// Processes an inventory movement event.
+    /// </summary>
+    /// <param name="event">The inventory movement event.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The ID of the created journal entry.</returns>
     public async Task<Guid> ProcessInventoryMovementAsync(InventoryMovementEvent @event, CancellationToken cancellationToken = default)
     {
         using var activity = Activity.Current?.Source.StartActivity("ProcessInventoryMovement");
@@ -696,6 +728,12 @@ public class EventProcessingService : IEventProcessingService
         });
     }
 
+    /// <summary>
+    /// Processes a payroll processed event.
+    /// </summary>
+    /// <param name="event">The payroll processed event.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The ID of the created journal entry.</returns>
     public async Task<Guid> ProcessPayrollProcessedAsync(PayrollProcessedEvent @event, CancellationToken cancellationToken = default)
     {
         using var activity = Activity.Current?.Source.StartActivity("ProcessPayrollProcessed");

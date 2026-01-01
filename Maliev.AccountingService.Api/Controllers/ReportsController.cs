@@ -7,6 +7,9 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace Maliev.AccountingService.Api.Controllers;
 
+/// <summary>
+/// Controller for generating various financial reports
+/// </summary>
 [ApiController]
 [ApiVersion("1.0")]
 [Route("accounting/v{version:apiVersion}/reports")]
@@ -15,6 +18,10 @@ public class ReportsController : ControllerBase
 {
     private readonly AccountingDbContext _dbContext;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ReportsController"/> class.
+    /// </summary>
+    /// <param name="dbContext">The database context.</param>
     public ReportsController(AccountingDbContext dbContext)
     {
         _dbContext = dbContext;

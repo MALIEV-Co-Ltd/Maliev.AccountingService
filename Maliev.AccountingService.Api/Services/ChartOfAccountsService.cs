@@ -16,6 +16,12 @@ public sealed class ChartOfAccountsService : IChartOfAccountsService
     private readonly IAuditService _auditService;
     private readonly ILogger<ChartOfAccountsService> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ChartOfAccountsService"/> class.
+    /// </summary>
+    /// <param name="dbContext">The database context.</param>
+    /// <param name="auditService">The audit service.</param>
+    /// <param name="logger">The logger.</param>
     public ChartOfAccountsService(
         AccountingDbContext dbContext,
         IAuditService auditService,
@@ -26,6 +32,12 @@ public sealed class ChartOfAccountsService : IChartOfAccountsService
         _logger = logger;
     }
 
+    /// <summary>
+    /// Retrieves all accounts with optional filtering.
+    /// </summary>
+    /// <param name="accountType">The optional account type filter.</param>
+    /// <param name="includeInactive">If true, includes inactive accounts.</param>
+    /// <returns>A list of chart of account responses.</returns>
     public async Task<List<ChartOfAccountResponse>> GetAllAccountsAsync(string? accountType = null, bool includeInactive = false)
     {
         var query = _dbContext.ChartOfAccounts
@@ -52,6 +64,11 @@ public sealed class ChartOfAccountsService : IChartOfAccountsService
         return accounts.ToResponse();
     }
 
+    /// <summary>
+    /// Retrieves the account hierarchy with optional filtering.
+    /// </summary>
+    /// <param name="accountType">The optional account type filter.</param>
+    /// <returns>A hierarchical list of chart of account responses.</returns>
     public async Task<List<ChartOfAccountResponse>> GetAccountHierarchyAsync(string? accountType = null)
     {
         // Load all active accounts with their children
@@ -98,6 +115,11 @@ public sealed class ChartOfAccountsService : IChartOfAccountsService
         return response;
     }
 
+    /// <summary>
+    /// Retrieves an account by its ID.
+    /// </summary>
+    /// <param name="id">The account ID.</param>
+    /// <returns>The chart of account response if found; otherwise, null.</returns>
     public async Task<ChartOfAccountResponse?> GetAccountByIdAsync(Guid id)
     {
         var account = await _dbContext.ChartOfAccounts
@@ -108,6 +130,11 @@ public sealed class ChartOfAccountsService : IChartOfAccountsService
         return account?.ToResponse();
     }
 
+    /// <summary>
+    /// Retrieves an account by its account number.
+    /// </summary>
+    /// <param name="accountNumber">The account number.</param>
+    /// <returns>The chart of account response if found; otherwise, null.</returns>
     public async Task<ChartOfAccountResponse?> GetAccountByNumberAsync(string accountNumber)
     {
         var account = await _dbContext.ChartOfAccounts
@@ -117,6 +144,11 @@ public sealed class ChartOfAccountsService : IChartOfAccountsService
         return account?.ToResponse();
     }
 
+    /// <summary>
+    /// Creates a new account.
+    /// </summary>
+    /// <param name="request">The create account request.</param>
+    /// <returns>The created chart of account response.</returns>
     public async Task<ChartOfAccountResponse> CreateAccountAsync(CreateChartOfAccountRequest request)
     {
         // Validate account number uniqueness
@@ -175,6 +207,12 @@ public sealed class ChartOfAccountsService : IChartOfAccountsService
         return account.ToResponse();
     }
 
+    /// <summary>
+    /// Updates an existing account.
+    /// </summary>
+    /// <param name="id">The account ID.</param>
+    /// <param name="request">The update account request.</param>
+    /// <returns>The updated chart of account response.</returns>
     public async Task<ChartOfAccountResponse> UpdateAccountAsync(Guid id, UpdateChartOfAccountRequest request)
     {
         var account = await _dbContext.ChartOfAccounts
@@ -247,6 +285,11 @@ public sealed class ChartOfAccountsService : IChartOfAccountsService
         return account.ToResponse();
     }
 
+    /// <summary>
+    /// Deactivates an account.
+    /// </summary>
+    /// <param name="id">The account ID.</param>
+    /// <returns>True if the account was deactivated; otherwise, false.</returns>
     public async Task<bool> DeactivateAccountAsync(Guid id)
     {
         var (isValid, errorMessage) = await ValidateDeactivationAsync(id);
@@ -288,6 +331,11 @@ public sealed class ChartOfAccountsService : IChartOfAccountsService
         return true;
     }
 
+    /// <summary>
+    /// Validates if an account can be deactivated.
+    /// </summary>
+    /// <param name="id">The account ID.</param>
+    /// <returns>A tuple indicating if validation passed and an optional error message.</returns>
     public async Task<(bool IsValid, string? ErrorMessage)> ValidateDeactivationAsync(Guid id)
     {
         var account = await _dbContext.ChartOfAccounts.FindAsync(id);

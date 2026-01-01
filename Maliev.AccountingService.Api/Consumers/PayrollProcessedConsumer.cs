@@ -13,6 +13,11 @@ public class PayrollProcessedConsumer : IConsumer<PayrollProcessedEvent>
     private readonly IEventProcessingService _eventProcessingService;
     private readonly ILogger<PayrollProcessedConsumer> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PayrollProcessedConsumer"/> class.
+    /// </summary>
+    /// <param name="eventProcessingService">The event processing service.</param>
+    /// <param name="logger">The logger.</param>
     public PayrollProcessedConsumer(
         IEventProcessingService eventProcessingService,
         ILogger<PayrollProcessedConsumer> logger)
@@ -21,6 +26,11 @@ public class PayrollProcessedConsumer : IConsumer<PayrollProcessedEvent>
         _logger = logger;
     }
 
+    /// <summary>
+    /// Consumes the <see cref="PayrollProcessedEvent"/>.
+    /// </summary>
+    /// <param name="context">The consume context.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     public async Task Consume(ConsumeContext<PayrollProcessedEvent> context)
     {
         using var activity = Activity.Current?.Source.StartActivity("ConsumePayrollProcessed");
