@@ -16,6 +16,11 @@ public class AccountingMetrics
     private readonly Counter<long> _processingErrorCounter;
     private readonly KeyValuePair<string, object?>[] _defaultTags;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AccountingMetrics"/> class.
+    /// </summary>
+    /// <param name="meterFactory">The meter factory.</param>
+    /// <param name="configuration">The configuration.</param>
     public AccountingMetrics(IMeterFactory meterFactory, IConfiguration configuration)
     {
         var serviceName = configuration["Service:Name"] ?? "accounting-service";

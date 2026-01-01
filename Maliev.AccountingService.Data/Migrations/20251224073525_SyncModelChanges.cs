@@ -1,8 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore.Migrations;
+using System.Diagnostics.CodeAnalysis;
 
 #nullable disable
 
-#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
+
 
 namespace Maliev.AccountingService.Data.Migrations
 {
@@ -10,6 +11,7 @@ namespace Maliev.AccountingService.Data.Migrations
     public partial class SyncModelChanges : Migration
     {
         /// <inheritdoc />
+        [SuppressMessage("Performance", "CA1814:Prefer jagged arrays over multidimensional arrays", Justification = "Multidimensional arrays are required by Entity Framework Core's InsertData API.")]
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DeleteData(
@@ -460,6 +462,7 @@ namespace Maliev.AccountingService.Data.Migrations
         }
 
         /// <inheritdoc />
+        [SuppressMessage("Performance", "CA1814:Prefer jagged arrays over multidimensional arrays", Justification = "Multidimensional arrays are required by Entity Framework Core's InsertData API.")]
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DeleteData(

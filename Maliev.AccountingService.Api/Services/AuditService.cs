@@ -13,6 +13,11 @@ public class AuditService : IAuditService
     private readonly AccountingDbContext _context;
     private readonly ILogger<AuditService> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AuditService"/> class.
+    /// </summary>
+    /// <param name="context">The database context.</param>
+    /// <param name="logger">The logger.</param>
     public AuditService(
         AccountingDbContext context,
         ILogger<AuditService> logger)
@@ -21,6 +26,19 @@ public class AuditService : IAuditService
         _logger = logger;
     }
 
+    /// <summary>
+    /// Records an audit trail entry.
+    /// </summary>
+    /// <param name="entityType">The type of the audited entity.</param>
+    /// <param name="entityId">The ID of the audited entity.</param>
+    /// <param name="action">The action performed.</param>
+    /// <param name="beforeState">The state before the operation.</param>
+    /// <param name="afterState">The state after the operation.</param>
+    /// <param name="userId">The ID of the user who performed the operation.</param>
+    /// <param name="correlationId">The correlation ID for the operation.</param>
+    /// <param name="ipAddress">The IP address of the user.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     public async Task RecordAuditAsync(
         string entityType,
         string entityId,
@@ -63,6 +81,13 @@ public class AuditService : IAuditService
             userId ?? "system");
     }
 
+    /// <summary>
+    /// Retrieves the audit trail for a specific entity.
+    /// </summary>
+    /// <param name="entityType">The type of the audited entity.</param>
+    /// <param name="entityId">The ID of the audited entity.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A collection of audit trail entries.</returns>
     public async Task<IEnumerable<AuditTrailEntry>> GetAuditTrailAsync(
         string entityType,
         string entityId,
@@ -74,6 +99,12 @@ public class AuditService : IAuditService
             .ToListAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Retrieves the audit trail for a specific user.
+    /// </summary>
+    /// <param name="userId">The ID of the user.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A collection of audit trail entries.</returns>
     public async Task<IEnumerable<AuditTrailEntry>> GetAuditTrailByUserAsync(
         string userId,
         CancellationToken cancellationToken = default)
@@ -85,6 +116,12 @@ public class AuditService : IAuditService
             .ToListAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Retrieves the audit trail for a specific correlation ID.
+    /// </summary>
+    /// <param name="correlationId">The correlation ID.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A collection of audit trail entries.</returns>
     public async Task<IEnumerable<AuditTrailEntry>> GetAuditTrailByCorrelationIdAsync(
         string correlationId,
         CancellationToken cancellationToken = default)

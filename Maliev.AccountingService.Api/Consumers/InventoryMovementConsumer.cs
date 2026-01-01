@@ -13,6 +13,11 @@ public class InventoryMovementConsumer : IConsumer<InventoryMovementEvent>
     private readonly IEventProcessingService _eventProcessingService;
     private readonly ILogger<InventoryMovementConsumer> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="InventoryMovementConsumer"/> class.
+    /// </summary>
+    /// <param name="eventProcessingService">The event processing service.</param>
+    /// <param name="logger">The logger.</param>
     public InventoryMovementConsumer(
         IEventProcessingService eventProcessingService,
         ILogger<InventoryMovementConsumer> logger)
@@ -21,6 +26,11 @@ public class InventoryMovementConsumer : IConsumer<InventoryMovementEvent>
         _logger = logger;
     }
 
+    /// <summary>
+    /// Consumes the <see cref="InventoryMovementEvent"/>.
+    /// </summary>
+    /// <param name="context">The consume context.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     public async Task Consume(ConsumeContext<InventoryMovementEvent> context)
     {
         using var activity = Activity.Current?.Source.StartActivity("ConsumeInventoryMovement");

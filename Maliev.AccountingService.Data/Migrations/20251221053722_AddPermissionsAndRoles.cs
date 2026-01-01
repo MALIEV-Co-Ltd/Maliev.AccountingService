@@ -1,8 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore.Migrations;
 
+using System.Diagnostics.CodeAnalysis;
+
 #nullable disable
 
-#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
+[assembly: SuppressMessage("Performance", "CA1814:Prefer jagged arrays over multidimensional", Justification = "EF Core API requires multidimensional array", Scope = "member", Target = "~M:Maliev.AccountingService.Data.Migrations.AddPermissionsAndRoles.Up(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)")]
 
 namespace Maliev.AccountingService.Data.Migrations
 {

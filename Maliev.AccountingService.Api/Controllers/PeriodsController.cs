@@ -8,6 +8,9 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace Maliev.AccountingService.Api.Controllers;
 
+/// <summary>
+/// Controller for managing financial periods and fiscal years
+/// </summary>
 [ApiController]
 [ApiVersion("1.0")]
 [Route("accounting/v{version:apiVersion}/periods")]
@@ -16,6 +19,10 @@ public class PeriodsController : ControllerBase
 {
     private readonly AccountingDbContext _dbContext;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PeriodsController"/> class.
+    /// </summary>
+    /// <param name="dbContext">The database context.</param>
     public PeriodsController(AccountingDbContext dbContext)
     {
         _dbContext = dbContext;

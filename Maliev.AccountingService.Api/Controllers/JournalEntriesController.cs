@@ -25,6 +25,12 @@ public class JournalEntriesController : ControllerBase
     private readonly IAuditService _auditService;
     private readonly ILogger<JournalEntriesController> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="JournalEntriesController"/> class.
+    /// </summary>
+    /// <param name="context">The database context.</param>
+    /// <param name="auditService">The audit service.</param>
+    /// <param name="logger">The logger.</param>
     public JournalEntriesController(
         AccountingDbContext context,
         IAuditService auditService,

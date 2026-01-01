@@ -6,6 +6,9 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace Maliev.AccountingService.Api.Controllers;
 
+/// <summary>
+/// Controller for viewing accounting-related permissions and roles
+/// </summary>
 [ApiController]
 [ApiVersion("1.0")]
 [Route("accounting/v{version:apiVersion}/permissions")]
@@ -13,6 +16,10 @@ public class PermissionsController : ControllerBase
 {
     private readonly AccountingDbContext _dbContext;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PermissionsController"/> class.
+    /// </summary>
+    /// <param name="dbContext">The database context.</param>
     public PermissionsController(AccountingDbContext dbContext)
     {
         _dbContext = dbContext;

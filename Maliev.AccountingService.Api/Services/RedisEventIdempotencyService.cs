@@ -13,6 +13,11 @@ public class RedisEventIdempotencyService : IEventIdempotencyService
     private const string KeyPrefix = "event:processed:";
     private static readonly TimeSpan Ttl = TimeSpan.FromHours(24);
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="RedisEventIdempotencyService"/> class.
+    /// </summary>
+    /// <param name="cache">The distributed cache.</param>
+    /// <param name="logger">The logger.</param>
     public RedisEventIdempotencyService(
         IDistributedCache cache,
         ILogger<RedisEventIdempotencyService> logger)
@@ -21,6 +26,12 @@ public class RedisEventIdempotencyService : IEventIdempotencyService
         _logger = logger;
     }
 
+    /// <summary>
+    /// Checks if an event has already been processed.
+    /// </summary>
+    /// <param name="eventId">The event ID.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>True if the event was processed; otherwise, false.</returns>
     public async Task<bool> IsEventProcessedAsync(string eventId, CancellationToken cancellationToken = default)
     {
         var key = GetKey(eventId);
@@ -36,6 +47,13 @@ public class RedisEventIdempotencyService : IEventIdempotencyService
         return isProcessed;
     }
 
+    /// <summary>
+    /// Marks an event as processed.
+    /// </summary>
+    /// <param name="eventId">The event ID.</param>
+    /// <param name="journalEntryId">The ID of the created journal entry.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     public async Task MarkEventAsProcessedAsync(string eventId, Guid journalEntryId, CancellationToken cancellationToken = default)
     {
         var key = GetKey(eventId);
@@ -60,6 +78,12 @@ public class RedisEventIdempotencyService : IEventIdempotencyService
             journalEntryId);
     }
 
+    /// <summary>
+    /// Retrieves the journal entry ID associated with a processed event.
+    /// </summary>
+    /// <param name="eventId">The event ID.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The journal entry ID if found; otherwise, null.</returns>
     public async Task<Guid?> GetJournalEntryIdAsync(string eventId, CancellationToken cancellationToken = default)
     {
         var key = GetKey(eventId);
