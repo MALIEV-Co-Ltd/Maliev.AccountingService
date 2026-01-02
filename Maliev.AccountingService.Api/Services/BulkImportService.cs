@@ -88,13 +88,18 @@ public class BulkImportService : IBulkImportService
                 return result;
             }
 
+            // Pre-fetch existing account numbers to avoid N+1 queries
+            var importAccountNumbers = accounts.Select(a => a.AccountNumber).ToList();
+            var existingAccountNumbers = await _dbContext.ChartOfAccounts
+                .Where(a => importAccountNumbers.Contains(a.AccountNumber))
+                .Select(a => a.AccountNumber)
+                .ToListAsync();
+            var existingSet = new HashSet<string>(existingAccountNumbers);
+
             // Import accounts
             foreach (var account in accounts)
             {
-                var exists = await _dbContext.ChartOfAccounts
-                    .AnyAsync(a => a.AccountNumber == account.AccountNumber);
-
-                if (exists)
+                if (existingSet.Contains(account.AccountNumber))
                 {
                     result.SkippedRecords++;
                     result.Warnings.Add($"Skipping {account.AccountNumber} (already exists)");

@@ -5,6 +5,7 @@ using Maliev.AccountingService.Data.Data;
 using Maliev.AccountingService.Data.Models;
 using Maliev.Aspire.ServiceDefaults.Authorization;
 using Microsoft.AspNetCore.Authorization;
+using Maliev.AccountingService.Api.Services;
 
 namespace Maliev.AccountingService.Api.Controllers;
 
@@ -18,14 +19,17 @@ namespace Maliev.AccountingService.Api.Controllers;
 public class PeriodsController : ControllerBase
 {
     private readonly AccountingDbContext _dbContext;
+    private readonly IPeriodService _periodService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PeriodsController"/> class.
     /// </summary>
     /// <param name="dbContext">The database context.</param>
-    public PeriodsController(AccountingDbContext dbContext)
+    /// <param name="periodService">The period service.</param>
+    public PeriodsController(AccountingDbContext dbContext, IPeriodService periodService)
     {
         _dbContext = dbContext;
+        _periodService = periodService;
     }
 
     /// <summary>
@@ -37,6 +41,7 @@ public class PeriodsController : ControllerBase
     {
         var periods = await _dbContext.FinancialPeriods
             .Include(p => p.FiscalYear)
+            .OrderByDescending(p => p.StartDate)
             .Select(p => new
             {
                 p.Id,
@@ -56,9 +61,14 @@ public class PeriodsController : ControllerBase
     /// </summary>
     [HttpPost("open")]
     [RequirePermission(AccountingPermissions.PeriodsOpen)]
-    public IActionResult OpenPeriod()
+    public async Task<IActionResult> OpenPeriod([FromQuery] DateTime date)
     {
-        return Ok(new { message = "Period opening logic not fully implemented in this migration" });
+        var period = await _periodService.GetOrCreatePeriodAsync(date);
+        return Ok(new
+        {
+            message = $"Period {period.Name} is open",
+            periodId = period.Id
+        });
     }
 
     /// <summary>
@@ -68,13 +78,15 @@ public class PeriodsController : ControllerBase
     [RequirePermission(AccountingPermissions.PeriodsClose)]
     public async Task<IActionResult> ClosePeriod(Guid id)
     {
-        var period = await _dbContext.FinancialPeriods.FindAsync(id);
-        if (period == null) return NotFound();
-
-        period.Status = PeriodStatus.Closed;
-        await _dbContext.SaveChangesAsync();
-
-        return Ok(new { message = $"Period {period.Name} closed successfully" });
+        try
+        {
+            await _periodService.ClosePeriodAsync(id);
+            return Ok(new { message = "Period closed successfully" });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     /// <summary>
@@ -84,12 +96,14 @@ public class PeriodsController : ControllerBase
     [RequirePermission(AccountingPermissions.PeriodsReopen)]
     public async Task<IActionResult> ReopenPeriod(Guid id)
     {
-        var period = await _dbContext.FinancialPeriods.FindAsync(id);
-        if (period == null) return NotFound();
-
-        period.Status = PeriodStatus.Open;
-        await _dbContext.SaveChangesAsync();
-
-        return Ok(new { message = $"Period {period.Name} reopened successfully" });
+        try
+        {
+            await _periodService.ReopenPeriodAsync(id);
+            return Ok(new { message = "Period reopened successfully" });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 }

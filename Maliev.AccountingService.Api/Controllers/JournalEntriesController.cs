@@ -9,6 +9,7 @@ using Maliev.Aspire.ServiceDefaults.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 
 namespace Maliev.AccountingService.Api.Controllers;
 
@@ -23,6 +24,7 @@ public class JournalEntriesController : ControllerBase
 {
     private readonly AccountingDbContext _context;
     private readonly IAuditService _auditService;
+    private readonly IPeriodService _periodService;
     private readonly ILogger<JournalEntriesController> _logger;
 
     /// <summary>
@@ -30,14 +32,17 @@ public class JournalEntriesController : ControllerBase
     /// </summary>
     /// <param name="context">The database context.</param>
     /// <param name="auditService">The audit service.</param>
+    /// <param name="periodService">The period service.</param>
     /// <param name="logger">The logger.</param>
     public JournalEntriesController(
         AccountingDbContext context,
         IAuditService auditService,
+        IPeriodService periodService,
         ILogger<JournalEntriesController> logger)
     {
         _context = context;
         _auditService = auditService;
+        _periodService = periodService;
         _logger = logger;
     }
 
@@ -65,22 +70,30 @@ public class JournalEntriesController : ControllerBase
         [FromQuery] int pageSize = 50)
     {
         var query = _context.JournalEntries
+            .AsNoTracking()
             .Include(j => j.Period)
             .Include(j => j.Lines)
                 .ThenInclude(l => l.Account)
             .Include(j => j.Lines)
                 .ThenInclude(l => l.TaxComponents)
+            .AsSplitQuery()
             .AsQueryable();
 
         // Apply filters
         if (startDate.HasValue)
         {
-            query = query.Where(j => j.EntryDate >= startDate.Value);
+            var utcStart = startDate.Value.Kind == DateTimeKind.Unspecified
+                ? DateTime.SpecifyKind(startDate.Value, DateTimeKind.Utc)
+                : startDate.Value.ToUniversalTime();
+            query = query.Where(j => j.EntryDate >= utcStart);
         }
 
         if (endDate.HasValue)
         {
-            query = query.Where(j => j.EntryDate <= endDate.Value);
+            var utcEnd = endDate.Value.Kind == DateTimeKind.Unspecified
+                ? DateTime.SpecifyKind(endDate.Value, DateTimeKind.Utc)
+                : endDate.Value.ToUniversalTime();
+            query = query.Where(j => j.EntryDate <= utcEnd);
         }
 
         if (accountId.HasValue)
@@ -103,9 +116,10 @@ public class JournalEntriesController : ControllerBase
             query = query.Where(j => j.Status == entryStatus);
         }
 
-        // Pagination
+        // Pagination - OrderBy MUST be before Skip/Take
         var entries = await query
             .OrderByDescending(j => j.EntryDate)
+            .ThenByDescending(j => j.CreatedAt)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
@@ -162,12 +176,10 @@ public class JournalEntriesController : ControllerBase
         }
 
         // Get or create period
-        var period = await GetOrCreatePeriodAsync(request.EntryDate);
+        var period = await _periodService.GetOrCreatePeriodAsync(request.EntryDate);
 
-        if (period.Status != PeriodStatus.Open)
-        {
-            return BadRequest(new { message = $"Cannot post to closed period {period.Name}" });
-        }
+        // Validate period is open
+        await _periodService.ValidatePeriodForPostingAsync(period.Id, isAdjustingEntry: false);
 
         // Get current user
         var userId = Guid.Empty; // TODO: Get from claims
@@ -176,7 +188,7 @@ public class JournalEntriesController : ControllerBase
         {
             Id = Guid.NewGuid(),
             PeriodId = period.Id,
-            EntryNumber = await GenerateEntryNumberAsync(period.Id),
+            EntryNumber = await _periodService.GenerateEntryNumberAsync(period.Id),
             EntryDate = request.EntryDate,
             Description = request.Description,
             Status = EntryStatus.Draft,
@@ -185,14 +197,17 @@ public class JournalEntriesController : ControllerBase
             TotalCredit = totalCredit
         };
 
+        // Pre-fetch all referenced account IDs to avoid N+1 queries
+        var accountIds = request.Lines.Select(l => l.AccountId).Distinct().ToList();
+        var accounts = await _context.ChartOfAccounts
+            .Where(a => accountIds.Contains(a.Id) && a.IsActive)
+            .ToDictionaryAsync(a => a.Id);
+
         int lineSequence = 1;
         foreach (var lineRequest in request.Lines)
         {
             // Validate account exists and is active
-            var account = await _context.ChartOfAccounts
-                .FirstOrDefaultAsync(a => a.Id == lineRequest.AccountId && a.IsActive);
-
-            if (account == null)
+            if (!accounts.TryGetValue(lineRequest.AccountId, out var account))
             {
                 return BadRequest(new { message = $"Account {lineRequest.AccountId} not found or is inactive" });
             }
@@ -292,10 +307,7 @@ public class JournalEntriesController : ControllerBase
         }
 
         // Verify period is still open
-        if (entry.Period.Status != PeriodStatus.Open)
-        {
-            return BadRequest(new { message = $"Cannot post to closed period {entry.Period.Name}" });
-        }
+        await _periodService.ValidatePeriodForPostingAsync(entry.PeriodId, isAdjustingEntry: false);
 
         // Verify balanced
         if (entry.TotalDebit != entry.TotalCredit)
@@ -330,67 +342,5 @@ public class JournalEntriesController : ControllerBase
             userId);
 
         return Ok(entry.ToResponse());
-    }
-
-    private async Task<FinancialPeriod> GetOrCreatePeriodAsync(DateTime transactionDate)
-    {
-        var year = transactionDate.Year;
-        var month = transactionDate.Month;
-        var periodName = $"{year}-{month:D2}";
-
-        var period = await _context.FinancialPeriods
-            .FirstOrDefaultAsync(p => p.Name == periodName);
-
-        if (period == null)
-        {
-            // Get or create fiscal year
-            var fiscalYearName = year.ToString();
-            var fiscalYear = await _context.FiscalYears
-                .FirstOrDefaultAsync(fy => fy.Name == fiscalYearName);
-
-            if (fiscalYear == null)
-            {
-                fiscalYear = new FiscalYear
-                {
-                    Id = Guid.NewGuid(),
-                    Name = fiscalYearName,
-                    StartDate = new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                    EndDate = new DateTime(year, 12, 31, 23, 59, 59, DateTimeKind.Utc),
-                    PeriodStructure = PeriodStructure.Monthly,
-                    IsActive = true
-                };
-                _context.FiscalYears.Add(fiscalYear);
-                await _context.SaveChangesAsync();
-            }
-
-            period = new FinancialPeriod
-            {
-                Id = Guid.NewGuid(),
-                FiscalYearId = fiscalYear.Id,
-                Name = periodName,
-                StartDate = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc),
-                EndDate = new DateTime(year, month, DateTime.DaysInMonth(year, month), 23, 59, 59, DateTimeKind.Utc),
-                Status = PeriodStatus.Open
-            };
-
-            _context.FinancialPeriods.Add(period);
-            await _context.SaveChangesAsync();
-        }
-
-        return period;
-    }
-
-    private async Task<string> GenerateEntryNumberAsync(Guid periodId)
-    {
-        var period = await _context.FinancialPeriods.FindAsync(periodId);
-        if (period == null)
-        {
-            throw new InvalidOperationException($"Period {periodId} not found");
-        }
-
-        var count = await _context.JournalEntries
-            .CountAsync(j => j.PeriodId == periodId);
-
-        return $"JE-{period.Name}-{(count + 1):D5}";
     }
 }

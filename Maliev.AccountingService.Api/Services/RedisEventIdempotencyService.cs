@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Caching.Distributed;
+using Maliev.Aspire.ServiceDefaults.Caching;
 using System.Text.Json;
 
 namespace Maliev.AccountingService.Api.Services;
@@ -8,7 +8,7 @@ namespace Maliev.AccountingService.Api.Services;
 /// </summary>
 public class RedisEventIdempotencyService : IEventIdempotencyService
 {
-    private readonly IDistributedCache _cache;
+    private readonly ICacheService _cache;
     private readonly ILogger<RedisEventIdempotencyService> _logger;
     private const string KeyPrefix = "event:processed:";
     private static readonly TimeSpan Ttl = TimeSpan.FromHours(24);
@@ -16,10 +16,10 @@ public class RedisEventIdempotencyService : IEventIdempotencyService
     /// <summary>
     /// Initializes a new instance of the <see cref="RedisEventIdempotencyService"/> class.
     /// </summary>
-    /// <param name="cache">The distributed cache.</param>
+    /// <param name="cache">The standardized cache service.</param>
     /// <param name="logger">The logger.</param>
     public RedisEventIdempotencyService(
-        IDistributedCache cache,
+        ICacheService cache,
         ILogger<RedisEventIdempotencyService> logger)
     {
         _cache = cache;
@@ -35,9 +35,9 @@ public class RedisEventIdempotencyService : IEventIdempotencyService
     public async Task<bool> IsEventProcessedAsync(string eventId, CancellationToken cancellationToken = default)
     {
         var key = GetKey(eventId);
-        var value = await _cache.GetStringAsync(key, cancellationToken);
+        var value = await _cache.GetAsync<ProcessedEventData>(key, cancellationToken);
 
-        var isProcessed = !string.IsNullOrEmpty(value);
+        var isProcessed = value != null;
 
         if (isProcessed)
         {
@@ -64,13 +64,7 @@ public class RedisEventIdempotencyService : IEventIdempotencyService
             ProcessedAt = DateTime.UtcNow
         };
 
-        var json = JsonSerializer.Serialize(data);
-        var options = new DistributedCacheEntryOptions
-        {
-            AbsoluteExpirationRelativeToNow = Ttl
-        };
-
-        await _cache.SetStringAsync(key, json, options, cancellationToken);
+        await _cache.SetAsync(key, data, Ttl, cancellationToken);
 
         _logger.LogInformation(
             "Marked event {EventId} as processed with journal entry {JournalEntryId}",
@@ -87,14 +81,8 @@ public class RedisEventIdempotencyService : IEventIdempotencyService
     public async Task<Guid?> GetJournalEntryIdAsync(string eventId, CancellationToken cancellationToken = default)
     {
         var key = GetKey(eventId);
-        var json = await _cache.GetStringAsync(key, cancellationToken);
+        var data = await _cache.GetAsync<ProcessedEventData>(key, cancellationToken);
 
-        if (string.IsNullOrEmpty(json))
-        {
-            return null;
-        }
-
-        var data = JsonSerializer.Deserialize<ProcessedEventData>(json);
         return data?.JournalEntryId;
     }
 

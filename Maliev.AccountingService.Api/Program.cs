@@ -61,6 +61,8 @@ builder.Services.AddScoped<Maliev.AccountingService.Api.Services.IChartOfAccount
     Maliev.AccountingService.Api.Services.ChartOfAccountsService>();
 builder.Services.AddScoped<Maliev.AccountingService.Api.Services.IBulkImportService,
     Maliev.AccountingService.Api.Services.BulkImportService>();
+builder.Services.AddScoped<Maliev.AccountingService.Api.Services.IPeriodService,
+    Maliev.AccountingService.Api.Services.PeriodService>();
 
 // Authorization Infrastructure
 builder.Services.AddPermissionAuthorization();
