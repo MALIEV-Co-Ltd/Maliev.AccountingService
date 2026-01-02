@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Asp.Versioning;
 using Microsoft.EntityFrameworkCore;
 using Maliev.AccountingService.Data.Data;
+using Maliev.AccountingService.Api.Services;
 using Maliev.Aspire.ServiceDefaults.Authorization;
 using Microsoft.AspNetCore.Authorization;
 
@@ -16,15 +17,15 @@ namespace Maliev.AccountingService.Api.Controllers;
 [Authorize]
 public class ReportsController : ControllerBase
 {
-    private readonly AccountingDbContext _dbContext;
+    private readonly IReportingService _reportingService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ReportsController"/> class.
     /// </summary>
-    /// <param name="dbContext">The database context.</param>
-    public ReportsController(AccountingDbContext dbContext)
+    /// <param name="reportingService">The reporting service.</param>
+    public ReportsController(IReportingService reportingService)
     {
-        _dbContext = dbContext;
+        _reportingService = reportingService;
     }
 
     /// <summary>
@@ -32,9 +33,10 @@ public class ReportsController : ControllerBase
     /// </summary>
     [HttpGet("balance-sheet")]
     [RequirePermission(AccountingPermissions.ReportsBalanceSheet)]
-    public IActionResult GetBalanceSheet()
+    public async Task<IActionResult> GetBalanceSheet([FromQuery] DateTime? asOfDate)
     {
-        return Ok(new { message = "Balance Sheet logic not fully implemented in this migration" });
+        var report = await _reportingService.GetBalanceSheetAsync(asOfDate ?? DateTime.UtcNow);
+        return Ok(report);
     }
 
     /// <summary>
@@ -42,19 +44,10 @@ public class ReportsController : ControllerBase
     /// </summary>
     [HttpGet("income-statement")]
     [RequirePermission(AccountingPermissions.ReportsIncomeStatement)]
-    public IActionResult GetIncomeStatement()
+    public async Task<IActionResult> GetIncomeStatement([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
     {
-        return Ok(new { message = "Income Statement logic not fully implemented in this migration" });
-    }
-
-    /// <summary>
-    /// Generate Cash Flow Statement
-    /// </summary>
-    [HttpGet("cash-flow")]
-    [RequirePermission(AccountingPermissions.ReportsCashFlow)]
-    public IActionResult GetCashFlow()
-    {
-        return Ok(new { message = "Cash Flow logic not fully implemented in this migration" });
+        var report = await _reportingService.GetIncomeStatementAsync(startDate, endDate);
+        return Ok(report);
     }
 
     /// <summary>
@@ -62,9 +55,10 @@ public class ReportsController : ControllerBase
     /// </summary>
     [HttpGet("trial-balance")]
     [RequirePermission(AccountingPermissions.ReportsTrialBalance)]
-    public IActionResult GetTrialBalance()
+    public async Task<IActionResult> GetTrialBalance([FromQuery] Guid? periodId, [FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate)
     {
-        return Ok(new { message = "Trial Balance logic not fully implemented in this migration" });
+        var report = await _reportingService.GetTrialBalanceAsync(periodId, startDate, endDate);
+        return Ok(report);
     }
 
     /// <summary>

@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Data;
 using System.Diagnostics;
 using Microsoft.Extensions.Caching.Memory;
+using MassTransit;
 
 namespace Maliev.AccountingService.Api.Services;
 
@@ -18,6 +19,7 @@ public class EventProcessingService : IEventProcessingService
     private readonly IEventIdempotencyService _idempotencyService;
     private readonly IAuditService _auditService;
     private readonly IPeriodService _periodService;
+    private readonly IPublishEndpoint _publishEndpoint;
     private readonly ILogger<EventProcessingService> _logger;
     private readonly AccountingMetrics _metrics;
     private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache _memoryCache;
@@ -43,6 +45,7 @@ public class EventProcessingService : IEventProcessingService
     /// <param name="idempotencyService">The idempotency service.</param>
     /// <param name="auditService">The audit service.</param>
     /// <param name="periodService">The period service.</param>
+    /// <param name="publishEndpoint">The publish endpoint.</param>
     /// <param name="logger">The logger.</param>
     /// <param name="metrics">The metrics.</param>
     /// <param name="memoryCache">The memory cache.</param>
@@ -51,6 +54,7 @@ public class EventProcessingService : IEventProcessingService
         IEventIdempotencyService idempotencyService,
         IAuditService auditService,
         IPeriodService periodService,
+        IPublishEndpoint publishEndpoint,
         ILogger<EventProcessingService> logger,
         AccountingMetrics metrics,
         Microsoft.Extensions.Caching.Memory.IMemoryCache memoryCache)
@@ -59,6 +63,7 @@ public class EventProcessingService : IEventProcessingService
         _idempotencyService = idempotencyService;
         _auditService = auditService;
         _periodService = periodService;
+        _publishEndpoint = publishEndpoint;
         _logger = logger;
         _metrics = metrics;
         _memoryCache = memoryCache;
@@ -242,6 +247,18 @@ public class EventProcessingService : IEventProcessingService
 
                 await transaction.CommitAsync(cancellationToken);
 
+                // Publish TransactionPostedEvent after commit
+                await _publishEndpoint.Publish(new TransactionPostedEvent
+                {
+                    JournalEntryId = journalEntry.Id,
+                    EntryNumber = journalEntry.EntryNumber,
+                    EntryDate = journalEntry.EntryDate,
+                    Description = journalEntry.Description,
+                    TotalAmount = journalEntry.TotalDebit,
+                    SourceSystem = journalEntry.SourceSystem,
+                    PostedAt = journalEntry.PostedAt ?? DateTime.UtcNow
+                }, cancellationToken);
+
                 activity?.SetTag("journal.entry.id", journalEntry.Id);
                 _logger.LogInformation(
                     "Successfully processed InvoiceCreated event {EventId}, created journal entry {JournalEntryId}",
@@ -396,6 +413,18 @@ public class EventProcessingService : IEventProcessingService
 
                 await _idempotencyService.MarkEventAsProcessedAsync(@event.EventId.ToString(), journalEntry.Id, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
+
+                // Publish TransactionPostedEvent after commit
+                await _publishEndpoint.Publish(new TransactionPostedEvent
+                {
+                    JournalEntryId = journalEntry.Id,
+                    EntryNumber = journalEntry.EntryNumber,
+                    EntryDate = journalEntry.EntryDate,
+                    Description = journalEntry.Description,
+                    TotalAmount = journalEntry.TotalDebit,
+                    SourceSystem = journalEntry.SourceSystem,
+                    PostedAt = journalEntry.PostedAt ?? DateTime.UtcNow
+                }, cancellationToken);
 
                 activity?.SetTag("journal.entry.id", journalEntry.Id);
                 _logger.LogInformation("Successfully processed PaymentReceived event {EventId}", @event.EventId);
@@ -568,6 +597,18 @@ public class EventProcessingService : IEventProcessingService
                 await _idempotencyService.MarkEventAsProcessedAsync(@event.EventId.ToString(), journalEntry.Id, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 
+                // Publish TransactionPostedEvent after commit
+                await _publishEndpoint.Publish(new TransactionPostedEvent
+                {
+                    JournalEntryId = journalEntry.Id,
+                    EntryNumber = journalEntry.EntryNumber,
+                    EntryDate = journalEntry.EntryDate,
+                    Description = journalEntry.Description,
+                    TotalAmount = journalEntry.TotalDebit,
+                    SourceSystem = journalEntry.SourceSystem,
+                    PostedAt = journalEntry.PostedAt ?? DateTime.UtcNow
+                }, cancellationToken);
+
                 activity?.SetTag("journal.entry.id", journalEntry.Id);
                 _logger.LogInformation("Successfully processed SupplierInvoice event {EventId}", @event.EventId);
 
@@ -710,6 +751,18 @@ public class EventProcessingService : IEventProcessingService
 
                 await _idempotencyService.MarkEventAsProcessedAsync(@event.EventId.ToString(), journalEntry.Id, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
+
+                // Publish TransactionPostedEvent after commit
+                await _publishEndpoint.Publish(new TransactionPostedEvent
+                {
+                    JournalEntryId = journalEntry.Id,
+                    EntryNumber = journalEntry.EntryNumber,
+                    EntryDate = journalEntry.EntryDate,
+                    Description = journalEntry.Description,
+                    TotalAmount = journalEntry.TotalDebit,
+                    SourceSystem = journalEntry.SourceSystem,
+                    PostedAt = journalEntry.PostedAt ?? DateTime.UtcNow
+                }, cancellationToken);
 
                 activity?.SetTag("journal.entry.id", journalEntry.Id);
                 _logger.LogInformation("Successfully processed InventoryMovement event {EventId}", @event.EventId);
@@ -876,6 +929,18 @@ public class EventProcessingService : IEventProcessingService
 
                 await _idempotencyService.MarkEventAsProcessedAsync(@event.EventId.ToString(), journalEntry.Id, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
+
+                // Publish TransactionPostedEvent after commit
+                await _publishEndpoint.Publish(new TransactionPostedEvent
+                {
+                    JournalEntryId = journalEntry.Id,
+                    EntryNumber = journalEntry.EntryNumber,
+                    EntryDate = journalEntry.EntryDate,
+                    Description = journalEntry.Description,
+                    TotalAmount = journalEntry.TotalDebit,
+                    SourceSystem = journalEntry.SourceSystem,
+                    PostedAt = journalEntry.PostedAt ?? DateTime.UtcNow
+                }, cancellationToken);
 
                 activity?.SetTag("journal.entry.id", journalEntry.Id);
                 _logger.LogInformation("Successfully processed PayrollProcessed event {EventId}", @event.EventId);

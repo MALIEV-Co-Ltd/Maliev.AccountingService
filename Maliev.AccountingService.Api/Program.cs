@@ -59,6 +59,12 @@ builder.Services.AddScoped<Maliev.AccountingService.Api.Services.IAuditService,
     Maliev.AccountingService.Api.Services.AuditService>();
 builder.Services.AddScoped<Maliev.AccountingService.Api.Services.IChartOfAccountsService,
     Maliev.AccountingService.Api.Services.ChartOfAccountsService>();
+builder.Services.AddScoped<Maliev.AccountingService.Api.Services.IReportingService,
+    Maliev.AccountingService.Api.Services.ReportingService>();
+builder.Services.AddScoped<Maliev.AccountingService.Api.Services.IReconciliationService,
+    Maliev.AccountingService.Api.Services.ReconciliationService>();
+builder.Services.AddScoped<Maliev.AccountingService.Api.Services.ITaxCalculationService,
+    Maliev.AccountingService.Api.Services.TaxCalculationService>();
 builder.Services.AddScoped<Maliev.AccountingService.Api.Services.IBulkImportService,
     Maliev.AccountingService.Api.Services.BulkImportService>();
 builder.Services.AddScoped<Maliev.AccountingService.Api.Services.IPeriodService,

@@ -34,6 +34,10 @@ public static class AccountingPermissions
     public const string PeriodsClose = "Permission:accounting.periods.close";
     public const string PeriodsReopen = "Permission:accounting.periods.reopen";
 
+    // Reconciliation Operations
+    public const string ReconciliationRun = "Permission:accounting.reconciliation.run";
+    public const string ReconciliationRead = "Permission:accounting.reconciliation.read";
+
     /// <summary>
     /// Gets the list of permissions for registration with IAM.
     /// Strips the "Permission:" prefix from codes.
@@ -66,7 +70,11 @@ public static class AccountingPermissions
             // Period Operations
             new() { Code = PeriodsOpen.Replace("Permission:", ""), Description = "Open accounting periods", IsCritical = false },
             new() { Code = PeriodsClose.Replace("Permission:", ""), Description = "Close accounting periods", IsCritical = true },
-            new() { Code = PeriodsReopen.Replace("Permission:", ""), Description = "Reopen closed periods", IsCritical = true }
+            new() { Code = PeriodsReopen.Replace("Permission:", ""), Description = "Reopen closed periods", IsCritical = true },
+
+            // Reconciliation Operations
+            new() { Code = ReconciliationRun.Replace("Permission:", ""), Description = "Run financial reconciliation", IsCritical = true },
+            new() { Code = ReconciliationRead.Replace("Permission:", ""), Description = "Read reconciliation reports", IsCritical = false }
         };
     }
 }
