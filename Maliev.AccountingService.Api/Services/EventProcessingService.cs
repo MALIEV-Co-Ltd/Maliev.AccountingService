@@ -5,6 +5,8 @@ using Maliev.AccountingService.Data.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
 using System.Diagnostics;
+using Microsoft.Extensions.Caching.Memory;
+using MassTransit;
 
 namespace Maliev.AccountingService.Api.Services;
 
@@ -16,8 +18,11 @@ public class EventProcessingService : IEventProcessingService
     private readonly AccountingDbContext _context;
     private readonly IEventIdempotencyService _idempotencyService;
     private readonly IAuditService _auditService;
+    private readonly IPeriodService _periodService;
+    private readonly IPublishEndpoint _publishEndpoint;
     private readonly ILogger<EventProcessingService> _logger;
     private readonly AccountingMetrics _metrics;
+    private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache _memoryCache;
 
     // Standard account codes - these should match the seeded chart of accounts
     private const string AR_ACCOUNT = "1200"; // Accounts Receivable
@@ -39,20 +44,29 @@ public class EventProcessingService : IEventProcessingService
     /// <param name="context">The database context.</param>
     /// <param name="idempotencyService">The idempotency service.</param>
     /// <param name="auditService">The audit service.</param>
+    /// <param name="periodService">The period service.</param>
+    /// <param name="publishEndpoint">The publish endpoint.</param>
     /// <param name="logger">The logger.</param>
     /// <param name="metrics">The metrics.</param>
+    /// <param name="memoryCache">The memory cache.</param>
     public EventProcessingService(
         AccountingDbContext context,
         IEventIdempotencyService idempotencyService,
         IAuditService auditService,
+        IPeriodService periodService,
+        IPublishEndpoint publishEndpoint,
         ILogger<EventProcessingService> logger,
-        AccountingMetrics metrics)
+        AccountingMetrics metrics,
+        Microsoft.Extensions.Caching.Memory.IMemoryCache memoryCache)
     {
         _context = context;
         _idempotencyService = idempotencyService;
         _auditService = auditService;
+        _periodService = periodService;
+        _publishEndpoint = publishEndpoint;
         _logger = logger;
         _metrics = metrics;
+        _memoryCache = memoryCache;
     }
 
     /// <summary>
@@ -90,13 +104,10 @@ public class EventProcessingService : IEventProcessingService
             try
             {
                 // Get or create financial period
-                var period = await GetOrCreatePeriodAsync(@event.InvoiceDate, cancellationToken);
+                var period = await _periodService.GetOrCreatePeriodAsync(@event.InvoiceDate, cancellationToken);
 
                 // Validate period is open
-                if (period.Status != PeriodStatus.Open)
-                {
-                    throw new InvalidOperationException($"Cannot post to closed period {period.Name}");
-                }
+                await _periodService.ValidatePeriodForPostingAsync(period.Id, isAdjustingEntry: false, cancellationToken);
 
                 // Get accounts
                 var arAccount = await GetAccountByCodeAsync(AR_ACCOUNT, cancellationToken);
@@ -108,7 +119,7 @@ public class EventProcessingService : IEventProcessingService
                 {
                     Id = Guid.NewGuid(),
                     PeriodId = period.Id,
-                    EntryNumber = await GenerateEntryNumberAsync(period.Id, cancellationToken),
+                    EntryNumber = await _periodService.GenerateEntryNumberAsync(period.Id, cancellationToken),
                     EntryDate = @event.InvoiceDate,
                     Description = $"Sales Invoice {@event.InvoiceNumber} - Customer {@event.CustomerId}",
                     Status = EntryStatus.Posted,
@@ -236,6 +247,18 @@ public class EventProcessingService : IEventProcessingService
 
                 await transaction.CommitAsync(cancellationToken);
 
+                // Publish TransactionPostedEvent after commit
+                await _publishEndpoint.Publish(new TransactionPostedEvent
+                {
+                    JournalEntryId = journalEntry.Id,
+                    EntryNumber = journalEntry.EntryNumber,
+                    EntryDate = journalEntry.EntryDate,
+                    Description = journalEntry.Description,
+                    TotalAmount = journalEntry.TotalDebit,
+                    SourceSystem = journalEntry.SourceSystem,
+                    PostedAt = journalEntry.PostedAt ?? DateTime.UtcNow
+                }, cancellationToken);
+
                 activity?.SetTag("journal.entry.id", journalEntry.Id);
                 _logger.LogInformation(
                     "Successfully processed InvoiceCreated event {EventId}, created journal entry {JournalEntryId}",
@@ -290,12 +313,9 @@ public class EventProcessingService : IEventProcessingService
 
             try
             {
-                var period = await GetOrCreatePeriodAsync(@event.PaymentDate, cancellationToken);
+                var period = await _periodService.GetOrCreatePeriodAsync(@event.PaymentDate, cancellationToken);
 
-                if (period.Status != PeriodStatus.Open)
-                {
-                    throw new InvalidOperationException($"Cannot post to closed period {period.Name}");
-                }
+                await _periodService.ValidatePeriodForPostingAsync(period.Id, isAdjustingEntry: false, cancellationToken);
 
                 var cashAccount = await GetAccountByCodeAsync(CASH_ACCOUNT, cancellationToken);
                 var arAccount = await GetAccountByCodeAsync(AR_ACCOUNT, cancellationToken);
@@ -304,7 +324,7 @@ public class EventProcessingService : IEventProcessingService
                 {
                     Id = Guid.NewGuid(),
                     PeriodId = period.Id,
-                    EntryNumber = await GenerateEntryNumberAsync(period.Id, cancellationToken),
+                    EntryNumber = await _periodService.GenerateEntryNumberAsync(period.Id, cancellationToken),
                     EntryDate = @event.PaymentDate,
                     Description = $"Payment {@event.PaymentNumber} - {@event.PaymentMethod}",
                     Status = EntryStatus.Posted,
@@ -394,6 +414,18 @@ public class EventProcessingService : IEventProcessingService
                 await _idempotencyService.MarkEventAsProcessedAsync(@event.EventId.ToString(), journalEntry.Id, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 
+                // Publish TransactionPostedEvent after commit
+                await _publishEndpoint.Publish(new TransactionPostedEvent
+                {
+                    JournalEntryId = journalEntry.Id,
+                    EntryNumber = journalEntry.EntryNumber,
+                    EntryDate = journalEntry.EntryDate,
+                    Description = journalEntry.Description,
+                    TotalAmount = journalEntry.TotalDebit,
+                    SourceSystem = journalEntry.SourceSystem,
+                    PostedAt = journalEntry.PostedAt ?? DateTime.UtcNow
+                }, cancellationToken);
+
                 activity?.SetTag("journal.entry.id", journalEntry.Id);
                 _logger.LogInformation("Successfully processed PaymentReceived event {EventId}", @event.EventId);
 
@@ -433,12 +465,9 @@ public class EventProcessingService : IEventProcessingService
 
             try
             {
-                var period = await GetOrCreatePeriodAsync(@event.InvoiceDate, cancellationToken);
+                var period = await _periodService.GetOrCreatePeriodAsync(@event.InvoiceDate, cancellationToken);
 
-                if (period.Status != PeriodStatus.Open)
-                {
-                    throw new InvalidOperationException($"Cannot post to closed period {period.Name}");
-                }
+                await _periodService.ValidatePeriodForPostingAsync(period.Id, isAdjustingEntry: false, cancellationToken);
 
                 var expenseAccount = await GetAccountByCodeAsync(EXPENSE_ACCOUNT, cancellationToken);
                 var vatInputAccount = await GetAccountByCodeAsync(VAT_INPUT_ACCOUNT, cancellationToken);
@@ -448,7 +477,7 @@ public class EventProcessingService : IEventProcessingService
                 {
                     Id = Guid.NewGuid(),
                     PeriodId = period.Id,
-                    EntryNumber = await GenerateEntryNumberAsync(period.Id, cancellationToken),
+                    EntryNumber = await _periodService.GenerateEntryNumberAsync(period.Id, cancellationToken),
                     EntryDate = @event.InvoiceDate,
                     Description = $"Supplier Invoice {@event.InvoiceNumber} - Supplier {@event.SupplierId}",
                     Status = EntryStatus.Posted,
@@ -568,6 +597,18 @@ public class EventProcessingService : IEventProcessingService
                 await _idempotencyService.MarkEventAsProcessedAsync(@event.EventId.ToString(), journalEntry.Id, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 
+                // Publish TransactionPostedEvent after commit
+                await _publishEndpoint.Publish(new TransactionPostedEvent
+                {
+                    JournalEntryId = journalEntry.Id,
+                    EntryNumber = journalEntry.EntryNumber,
+                    EntryDate = journalEntry.EntryDate,
+                    Description = journalEntry.Description,
+                    TotalAmount = journalEntry.TotalDebit,
+                    SourceSystem = journalEntry.SourceSystem,
+                    PostedAt = journalEntry.PostedAt ?? DateTime.UtcNow
+                }, cancellationToken);
+
                 activity?.SetTag("journal.entry.id", journalEntry.Id);
                 _logger.LogInformation("Successfully processed SupplierInvoice event {EventId}", @event.EventId);
 
@@ -607,12 +648,9 @@ public class EventProcessingService : IEventProcessingService
 
             try
             {
-                var period = await GetOrCreatePeriodAsync(@event.MovementDate, cancellationToken);
+                var period = await _periodService.GetOrCreatePeriodAsync(@event.MovementDate, cancellationToken);
 
-                if (period.Status != PeriodStatus.Open)
-                {
-                    throw new InvalidOperationException($"Cannot post to closed period {period.Name}");
-                }
+                await _periodService.ValidatePeriodForPostingAsync(period.Id, isAdjustingEntry: false, cancellationToken);
 
                 var inventoryAccount = await GetAccountByCodeAsync(INVENTORY_ACCOUNT, cancellationToken);
                 var apAccount = await GetAccountByCodeAsync(AP_ACCOUNT, cancellationToken);
@@ -622,7 +660,7 @@ public class EventProcessingService : IEventProcessingService
                 {
                     Id = Guid.NewGuid(),
                     PeriodId = period.Id,
-                    EntryNumber = await GenerateEntryNumberAsync(period.Id, cancellationToken),
+                    EntryNumber = await _periodService.GenerateEntryNumberAsync(period.Id, cancellationToken),
                     EntryDate = @event.MovementDate,
                     Description = $"Inventory Movement {@event.MovementNumber} - {@event.MovementType} - {@event.ProductName}",
                     Status = EntryStatus.Posted,
@@ -714,6 +752,18 @@ public class EventProcessingService : IEventProcessingService
                 await _idempotencyService.MarkEventAsProcessedAsync(@event.EventId.ToString(), journalEntry.Id, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 
+                // Publish TransactionPostedEvent after commit
+                await _publishEndpoint.Publish(new TransactionPostedEvent
+                {
+                    JournalEntryId = journalEntry.Id,
+                    EntryNumber = journalEntry.EntryNumber,
+                    EntryDate = journalEntry.EntryDate,
+                    Description = journalEntry.Description,
+                    TotalAmount = journalEntry.TotalDebit,
+                    SourceSystem = journalEntry.SourceSystem,
+                    PostedAt = journalEntry.PostedAt ?? DateTime.UtcNow
+                }, cancellationToken);
+
                 activity?.SetTag("journal.entry.id", journalEntry.Id);
                 _logger.LogInformation("Successfully processed InventoryMovement event {EventId}", @event.EventId);
 
@@ -753,12 +803,9 @@ public class EventProcessingService : IEventProcessingService
 
             try
             {
-                var period = await GetOrCreatePeriodAsync(@event.PaymentDate, cancellationToken);
+                var period = await _periodService.GetOrCreatePeriodAsync(@event.PaymentDate, cancellationToken);
 
-                if (period.Status != PeriodStatus.Open)
-                {
-                    throw new InvalidOperationException($"Cannot post to closed period {period.Name}");
-                }
+                await _periodService.ValidatePeriodForPostingAsync(period.Id, isAdjustingEntry: false, cancellationToken);
 
                 var payrollExpenseAccount = await GetAccountByCodeAsync(PAYROLL_EXPENSE_ACCOUNT, cancellationToken);
 
@@ -766,7 +813,7 @@ public class EventProcessingService : IEventProcessingService
                 {
                     Id = Guid.NewGuid(),
                     PeriodId = period.Id,
-                    EntryNumber = await GenerateEntryNumberAsync(period.Id, cancellationToken),
+                    EntryNumber = await _periodService.GenerateEntryNumberAsync(period.Id, cancellationToken),
                     EntryDate = @event.PaymentDate,
                     Description = $"Payroll {@event.PayrollNumber} - Period {@event.PayPeriodStart:yyyy-MM-dd} to {@event.PayPeriodEnd:yyyy-MM-dd}",
                     Status = EntryStatus.Posted,
@@ -883,6 +930,18 @@ public class EventProcessingService : IEventProcessingService
                 await _idempotencyService.MarkEventAsProcessedAsync(@event.EventId.ToString(), journalEntry.Id, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
 
+                // Publish TransactionPostedEvent after commit
+                await _publishEndpoint.Publish(new TransactionPostedEvent
+                {
+                    JournalEntryId = journalEntry.Id,
+                    EntryNumber = journalEntry.EntryNumber,
+                    EntryDate = journalEntry.EntryDate,
+                    Description = journalEntry.Description,
+                    TotalAmount = journalEntry.TotalDebit,
+                    SourceSystem = journalEntry.SourceSystem,
+                    PostedAt = journalEntry.PostedAt ?? DateTime.UtcNow
+                }, cancellationToken);
+
                 activity?.SetTag("journal.entry.id", journalEntry.Id);
                 _logger.LogInformation("Successfully processed PayrollProcessed event {EventId}", @event.EventId);
 
@@ -897,80 +956,13 @@ public class EventProcessingService : IEventProcessingService
         });
     }
 
-    private async Task<FinancialPeriod> GetOrCreatePeriodAsync(DateTime transactionDate, CancellationToken cancellationToken)
-    {
-        // For now, create monthly periods automatically
-        var year = transactionDate.Year;
-        var month = transactionDate.Month;
-        var periodName = $"{year}-{month:D2}";
-
-        var period = await _context.FinancialPeriods
-            .FirstOrDefaultAsync(p => p.Name == periodName, cancellationToken);
-
-        if (period == null)
-        {
-            // Get or create fiscal year
-            var fiscalYearName = year.ToString();
-            var fiscalYear = await _context.FiscalYears
-                .FirstOrDefaultAsync(fy => fy.Name == fiscalYearName, cancellationToken);
-
-            if (fiscalYear == null)
-            {
-                fiscalYear = new FiscalYear
-                {
-                    Id = Guid.NewGuid(),
-                    Name = fiscalYearName,
-                    StartDate = DateTime.SpecifyKind(new DateTime(year, 1, 1), DateTimeKind.Utc),
-                    EndDate = DateTime.SpecifyKind(new DateTime(year, 12, 31, 23, 59, 59), DateTimeKind.Utc),
-                    PeriodStructure = PeriodStructure.Monthly,
-                    IsActive = true,
-                    CreatedAt = DateTime.UtcNow
-                };
-                _context.FiscalYears.Add(fiscalYear);
-                await _context.SaveChangesAsync(cancellationToken);
-            }
-
-            period = new FinancialPeriod
-            {
-                Id = Guid.NewGuid(),
-                FiscalYearId = fiscalYear.Id,
-                Name = periodName,
-                StartDate = DateTime.SpecifyKind(new DateTime(year, month, 1), DateTimeKind.Utc),
-                EndDate = DateTime.SpecifyKind(new DateTime(year, month, DateTime.DaysInMonth(year, month), 23, 59, 59), DateTimeKind.Utc),
-                Status = PeriodStatus.Open
-            };
-
-            _context.FinancialPeriods.Add(period);
-            await _context.SaveChangesAsync(cancellationToken);
-        }
-
-        return period;
-    }
-
     private async Task<ChartOfAccount> GetAccountByCodeAsync(string accountCode, CancellationToken cancellationToken)
     {
-        var account = await _context.ChartOfAccounts
-            .FirstOrDefaultAsync(a => a.AccountNumber == accountCode && a.IsActive, cancellationToken);
-
-        if (account == null)
+        return await _memoryCache.GetOrCreateAsync($"account_{accountCode}", async entry =>
         {
-            throw new InvalidOperationException($"Account with code {accountCode} not found or is inactive");
-        }
-
-        return account;
-    }
-
-    private async Task<string> GenerateEntryNumberAsync(Guid periodId, CancellationToken cancellationToken)
-    {
-        var period = await _context.FinancialPeriods.FindAsync(new object[] { periodId }, cancellationToken);
-        if (period == null)
-        {
-            throw new InvalidOperationException($"Period {periodId} not found");
-        }
-
-        var count = await _context.JournalEntries
-            .CountAsync(j => j.PeriodId == periodId, cancellationToken);
-
-        return $"JE-{period.Name}-{(count + 1):D5}";
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1);
+            return await _context.ChartOfAccounts
+                .FirstOrDefaultAsync(a => a.AccountNumber == accountCode && a.IsActive, cancellationToken);
+        }) ?? throw new InvalidOperationException($"Account with code {accountCode} not found or is inactive");
     }
 }

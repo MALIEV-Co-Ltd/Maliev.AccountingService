@@ -29,7 +29,7 @@ public class AuthZTests : IClassFixture<TestWebApplicationFactory>
         response.EnsureSuccessStatusCode();
         var permissions = await response.Content.ReadFromJsonAsync<List<object>>();
         Assert.NotNull(permissions);
-        Assert.Equal(18, permissions.Count);
+        Assert.Equal(20, permissions.Count);
     }
 
     [Fact]

@@ -63,14 +63,6 @@ public class InvoiceCreatedConsumer : IConsumer<InvoiceCreatedEvent>
                 "Failed to process InvoiceCreated event {EventId}",
                 context.Message.EventId);
 
-            // DEBUG: Write to file to debug test failures
-            try
-            {
-                File.AppendAllText("test_consumer_errors.txt",
-                    $"[{DateTime.UtcNow}] Consumer Error: {ex.Message}\nStack: {ex.StackTrace}\n\n");
-            }
-            catch { }
-
             throw; // Let MassTransit handle retry
         }
     }

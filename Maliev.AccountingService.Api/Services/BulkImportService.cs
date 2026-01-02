@@ -4,6 +4,7 @@ using Maliev.AccountingService.Api.Models;
 using Maliev.AccountingService.Data.Data;
 using Maliev.AccountingService.Data.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using System.Globalization;
 using System.Text.Json;
 
@@ -88,13 +89,18 @@ public class BulkImportService : IBulkImportService
                 return result;
             }
 
+            // Pre-fetch existing account numbers to avoid N+1 queries
+            var importAccountNumbers = accounts.Select(a => a.AccountNumber).ToList();
+            var existingAccountNumbers = await _dbContext.ChartOfAccounts
+                .Where(a => importAccountNumbers.Contains(a.AccountNumber))
+                .Select(a => a.AccountNumber)
+                .ToListAsync();
+            var existingSet = new HashSet<string>(existingAccountNumbers);
+
             // Import accounts
             foreach (var account in accounts)
             {
-                var exists = await _dbContext.ChartOfAccounts
-                    .AnyAsync(a => a.AccountNumber == account.AccountNumber);
-
-                if (exists)
+                if (existingSet.Contains(account.AccountNumber))
                 {
                     result.SkippedRecords++;
                     result.Warnings.Add($"Skipping {account.AccountNumber} (already exists)");
@@ -192,13 +198,53 @@ public class BulkImportService : IBulkImportService
                 return result;
             }
 
-            // Note: Actual import of opening balances requires creating journal entries
-            // This should be implemented based on business requirements
-            result.Success = false;
-            result.Errors.Add("Opening balances import is not yet implemented. Requires journal entry creation logic.");
-            result.Summary = $"Import failed: Feature not implemented. Validation completed for {balances.Count} opening balances (balanced: DR={totalDebits:F2}, CR={totalCredits:F2})";
+            // Implementation of actual import: Create a manual journal entry for opening balances
+            var openingDate = new DateTime(DateTime.UtcNow.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc); // Default to start of year
+            var periodService = _dbContext.GetService<IPeriodService>();
+            var period = await periodService.GetOrCreatePeriodAsync(openingDate);
 
-            _logger.LogWarning("Opening balances validated but not imported - journal entry creation not implemented");
+            var journalEntry = new JournalEntry
+            {
+                Id = Guid.NewGuid(),
+                PeriodId = period.Id,
+                EntryNumber = await periodService.GenerateEntryNumberAsync(period.Id),
+                EntryDate = openingDate,
+                Description = "Opening Balances Import",
+                Status = EntryStatus.Posted,
+                SourceSystem = "System",
+                CreatedBy = Guid.Empty,
+                PostedAt = DateTime.UtcNow,
+                PostedBy = Guid.Empty,
+                TotalDebit = totalDebits,
+                TotalCredit = totalCredits
+            };
+
+            int seq = 1;
+            foreach (var balance in balances)
+            {
+                var account = await _dbContext.ChartOfAccounts
+                    .FirstAsync(a => a.AccountNumber == balance.AccountNumber);
+
+                journalEntry.Lines.Add(new JournalEntryLine
+                {
+                    Id = Guid.NewGuid(),
+                    JournalEntryId = journalEntry.Id,
+                    AccountId = account.Id,
+                    LineSequence = seq++,
+                    Description = "Opening balance",
+                    DebitAmount = balance.DebitAmount,
+                    CreditAmount = balance.CreditAmount
+                });
+            }
+
+            _dbContext.JournalEntries.Add(journalEntry);
+            await _dbContext.SaveChangesAsync();
+
+            result.Success = true;
+            result.ImportedRecords = balances.Count;
+            result.Summary = $"Successfully imported {balances.Count} opening balances into journal entry {journalEntry.EntryNumber}";
+
+            _logger.LogInformation("Opening balances imported successfully: {EntryNumber}", journalEntry.EntryNumber);
 
             return result;
         }

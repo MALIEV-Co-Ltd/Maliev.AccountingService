@@ -1,62 +1,22 @@
 namespace Maliev.AccountingService.Api.Events;
 
 /// <summary>
-/// Event published by Accounting service when a transaction is posted to the ledger
+/// Event published when a financial transaction is posted to the ledger
 /// </summary>
-public class TransactionPostedEvent
+public record TransactionPostedEvent
 {
-    /// <summary>
-    /// Gets or sets the event ID.
-    /// </summary>
-    public Guid EventId { get; set; }
-
-    /// <summary>
-    /// Gets or sets the journal entry ID.
-    /// </summary>
-    public Guid JournalEntryId { get; set; }
-
-    /// <summary>
-    /// Gets or sets the unique entry number.
-    /// </summary>
-    public string EntryNumber { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Gets or sets the entry date.
-    /// </summary>
-    public DateTime EntryDate { get; set; }
-
-    /// <summary>
-    /// Gets or sets the description.
-    /// </summary>
-    public string Description { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Gets or sets the total debit amount.
-    /// </summary>
-    public decimal TotalDebit { get; set; }
-
-    /// <summary>
-    /// Gets or sets the total credit amount.
-    /// </summary>
-    public decimal TotalCredit { get; set; }
-
-    /// <summary>
-    /// Gets or sets the IDs of affected accounts.
-    /// </summary>
-    public List<Guid> AccountsAffected { get; set; } = new();
-
-    /// <summary>
-    /// Gets or sets the source event ID.
-    /// </summary>
-    public Guid? SourceEventId { get; set; }
-
-    /// <summary>
-    /// Gets or sets the date and time when posted.
-    /// </summary>
-    public DateTime PostedAt { get; set; }
-
-    /// <summary>
-    /// Gets or sets the ID of the user who posted.
-    /// </summary>
-    public Guid PostedBy { get; set; }
+    /// <summary>The ID of the journal entry.</summary>
+    public Guid JournalEntryId { get; init; }
+    /// <summary>The human-readable entry number.</summary>
+    public string EntryNumber { get; init; } = string.Empty;
+    /// <summary>The date the entry was recorded.</summary>
+    public DateTime EntryDate { get; init; }
+    /// <summary>A description of the transaction.</summary>
+    public string Description { get; init; } = string.Empty;
+    /// <summary>The total debit amount.</summary>
+    public decimal TotalAmount { get; init; }
+    /// <summary>The source system that originated the event.</summary>
+    public string SourceSystem { get; init; } = string.Empty;
+    /// <summary>The timestamp when the entry was posted.</summary>
+    public DateTime PostedAt { get; init; }
 }

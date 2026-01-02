@@ -48,13 +48,13 @@ public class CreateJournalEntryLineRequest
     /// <summary>
     /// Gets or sets the debit amount.
     /// </summary>
-    [Range(0, double.MaxValue, ErrorMessage = "Debit amount must be non-negative")]
+    [Range(0, (double)decimal.MaxValue, ErrorMessage = "Debit amount must be non-negative")]
     public decimal DebitAmount { get; set; }
 
     /// <summary>
     /// Gets or sets the credit amount.
     /// </summary>
-    [Range(0, double.MaxValue, ErrorMessage = "Credit amount must be non-negative")]
+    [Range(0, (double)decimal.MaxValue, ErrorMessage = "Credit amount must be non-negative")]
     public decimal CreditAmount { get; set; }
 
     /// <summary>
@@ -106,12 +106,12 @@ public class CreateTaxComponentRequest
     /// <summary>
     /// Gets or sets the taxable amount.
     /// </summary>
-    [Range(0, double.MaxValue)]
+    [Range(0, (double)decimal.MaxValue)]
     public decimal TaxableAmount { get; set; }
 
     /// <summary>
     /// Gets or sets the tax amount.
     /// </summary>
-    [Range(0, double.MaxValue)]
+    [Range(0, (double)decimal.MaxValue)]
     public decimal TaxAmount { get; set; }
 }

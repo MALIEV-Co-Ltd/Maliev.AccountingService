@@ -89,22 +89,22 @@ public sealed class ChartOfAccountsService : IChartOfAccountsService
             .ToListAsync();
 
         // Build hierarchical structure - start with root accounts (no parent)
-        var rootAccounts = allAccounts
-            .Where(a => a.ParentAccountId == null)
-            .Select(a => BuildAccountHierarchy(a, allAccounts))
+        var accountsByParent = allAccounts.ToLookup(a => a.ParentAccountId);
+
+        var rootAccounts = accountsByParent[null]
+            .Select(a => BuildAccountHierarchy(a, accountsByParent))
             .ToList();
 
         return rootAccounts;
     }
 
-    private ChartOfAccountResponse BuildAccountHierarchy(ChartOfAccount account, List<ChartOfAccount> allAccounts)
+    private ChartOfAccountResponse BuildAccountHierarchy(ChartOfAccount account, ILookup<Guid?, ChartOfAccount> accountsByParent)
     {
         var response = account.ToResponse();
 
-        // Find and build children recursively
-        var children = allAccounts
-            .Where(a => a.ParentAccountId == account.Id)
-            .Select(child => BuildAccountHierarchy(child, allAccounts))
+        // Find and build children recursively using lookup
+        var children = accountsByParent[account.Id]
+            .Select(child => BuildAccountHierarchy(child, accountsByParent))
             .ToList();
 
         if (children.Any())

@@ -224,54 +224,54 @@
 
 ### Tests for User Story 3
 
-- [ ] T105 [P] [US3] Create PeriodManagementTests in tests/Integration/PeriodManagementTests.cs
-- [ ] T106 [P] [US3] Write test: Configure fiscal year with monthly periods, verify all created in open status
-- [ ] T107 [P] [US3] Write test: Close period with balanced transactions, verify marked closed and rejects new postings
-- [ ] T108 [P] [US3] Write test: Attempt post to closed period, verify rejection with period locked error
-- [ ] T109 [P] [US3] Write test: Create adjusting entry with approval for closed period, verify allowed with audit trail
-- [ ] T110 [P] [US3] Write test: Query multiple periods, verify open/closed status clearly indicated
+- [X] T105 [P] [US3] Create PeriodManagementTests in tests/Integration/PeriodManagementTests.cs
+- [X] T106 [P] [US3] Write test: Configure fiscal year with monthly periods, verify all created in open status
+- [X] T107 [P] [US3] Write test: Close period with balanced transactions, verify marked closed and rejects new postings
+- [X] T108 [P] [US3] Write test: Attempt post to closed period, verify rejection with period locked error
+- [X] T109 [P] [US3] Write test: Create adjusting entry with approval for closed period, verify allowed with audit trail
+- [X] T110 [P] [US3] Write test: Query multiple periods, verify open/closed status clearly indicated
 
 ### Implementation for User Story 3
 
 #### Entities & Database
 
-- [ ] T111 [P] [US3] Create FiscalYear entity in src/Models/FiscalYear.cs with name, start/end dates, period structure, is_active
-- [ ] T112 [P] [US3] Create FinancialPeriod entity in src/Models/FinancialPeriod.cs with name, dates, status, closed_by, row_version
+- [X] T111 [P] [US3] Create FiscalYear entity in src/Models/FiscalYear.cs with name, start/end dates, period structure, is_active
+- [X] T112 [P] [US3] Create FinancialPeriod entity in src/Models/FinancialPeriod.cs with name, dates, status, closed_by, row_version
 - [ ] T113 [P] [US3] Create AdjustingEntryApproval entity in src/Models/AdjustingEntryApproval.cs with journal entry reference, requester, approver, reason
-- [ ] T114 [US3] Create migration for FiscalYear, FinancialPeriod, AdjustingEntryApproval tables
-- [ ] T115 [US3] Add database constraints: end date > start date, period status enum check, only one active fiscal year, no overlapping periods
-- [ ] T116 [US3] Add database indexes: fiscal year dates, financial period fiscal year ID, period status, period dates
-- [ ] T117 [US3] Update JournalEntry to add foreign key to FinancialPeriod
+- [X] T114 [US3] Create migration for FiscalYear, FinancialPeriod, AdjustingEntryApproval tables
+- [X] T115 [US3] Add database constraints: end date > start date, period status enum check, only one active fiscal year, no overlapping periods
+- [X] T116 [US3] Add database indexes: fiscal year dates, financial period fiscal year ID, period status, period dates
+- [X] T117 [US3] Update JournalEntry to add foreign key to FinancialPeriod
 
 #### DTOs & Extensions
 
-- [ ] T118 [P] [US3] Create FiscalYearResponse, FinancialPeriodResponse DTOs in src/DTOs/Responses/
-- [ ] T119 [P] [US3] Create CreateFiscalYearRequest, CreateFinancialPeriodRequest DTOs in src/DTOs/Requests/
-- [ ] T120 [P] [US3] Create extensions: FiscalYearExtensions, FinancialPeriodExtensions in src/Extensions/
+- [X] T118 [P] [US3] Create FiscalYearResponse, FinancialPeriodResponse DTOs in src/DTOs/Responses/
+- [X] T119 [P] [US3] Create CreateFiscalYearRequest, CreateFinancialPeriodRequest DTOs in src/DTOs/Requests/
+- [X] T120 [P] [US3] Create extensions: FiscalYearExtensions, FinancialPeriodExtensions in src/Extensions/
 
 #### Services
 
-- [ ] T121 [US3] Create IPeriodManagementService interface in src/Services/IPeriodManagementService.cs
-- [ ] T122 [US3] Implement PeriodManagementService in src/Services/PeriodManagementService.cs with period CRUD and close operations
-- [ ] T123 [US3] Add period closing logic with SELECT FOR UPDATE pessimistic locking to prevent concurrent closes
-- [ ] T124 [US3] Add validation: cannot close period with draft journal entries
+- [X] T121 [US3] Create IPeriodManagementService interface in src/Services/IPeriodManagementService.cs
+- [X] T122 [US3] Implement PeriodManagementService in src/Services/PeriodManagementService.cs with period CRUD and close operations
+- [X] T123 [US3] Add period closing logic with SELECT FOR UPDATE pessimistic locking to prevent concurrent closes
+- [X] T124 [US3] Add validation: cannot close period with draft journal entries
 - [ ] T125 [US3] Add adjusting entry approval workflow in PeriodManagementService
-- [ ] T126 [US3] Add audit logging for period status changes
+- [X] T126 [US3] Add audit logging for period status changes
 
 #### API Controllers
 
-- [ ] T127 [US3] Create PeriodsController in src/Controllers/PeriodsController.cs with [ApiController] and [Authorize]
-- [ ] T128 [P] [US3] Implement POST /api/v1/periods endpoint for creating periods
-- [ ] T129 [P] [US3] Implement GET /api/v1/periods endpoint for listing periods
-- [ ] T130 [P] [US3] Implement POST /api/v1/periods/{id}/close endpoint for closing periods
-- [ ] T131 [US3] Add role-based authorization: financial_controller role required for period operations
+- [X] T127 [US3] Create PeriodsController in src/Controllers/PeriodsController.cs with [ApiController] and [Authorize]
+- [X] T128 [P] [US3] Implement POST /api/v1/periods endpoint for creating periods
+- [X] T129 [P] [US3] Implement GET /api/v1/periods endpoint for listing periods
+- [X] T130 [P] [US3] Implement POST /api/v1/periods/{id}/close endpoint for closing periods
+- [X] T131 [US3] Add role-based authorization: financial_controller role required for period operations
 
 #### Integration
 
-- [ ] T132 [US3] Update EventProcessingService to validate period is open before creating journal entries
-- [ ] T133 [US3] Update EventProcessingService to assign journal entry to correct period based on transaction date
-- [ ] T134 [US3] Add concurrency handling in PeriodManagementService for DbUpdateConcurrencyException and NpgsqlException (lock not available)
-- [ ] T135 [US3] Run all User Story 3 tests and verify they pass
+- [X] T132 [US3] Update EventProcessingService to validate period is open before creating journal entries
+- [X] T133 [US3] Update EventProcessingService to assign journal entry to correct period based on transaction date
+- [X] T134 [US3] Add concurrency handling in PeriodManagementService for DbUpdateConcurrencyException and NpgsqlException (lock not available)
+- [X] T135 [US3] Run all User Story 3 tests and verify they pass
 
 **Checkpoint**: User Stories 1, 2, AND 3 complete - Can manage periods, transactions respect period status
 
@@ -425,7 +425,7 @@
 
 #### API Controllers
 
-- [ ] T208 [US6] Create ReportsController in src/Controllers/ReportsController.cs with [ApiController] and [Authorize]
+- [X] T208 [US6] Create ReportsController in src/Controllers/ReportsController.cs with [ApiController] and [Authorize]
 - [ ] T209 [P] [US6] Implement GET /api/v1/reports/trial-balance endpoint
 - [ ] T210 [P] [US6] Implement GET /api/v1/reports/balance-sheet endpoint
 - [ ] T211 [P] [US6] Implement GET /api/v1/reports/income-statement endpoint
@@ -451,11 +451,11 @@
 ### Tests for User Story 7
 
 - [ ] T217 [P] [US7] Create AuditTrailTests in tests/Integration/AuditTrailTests.cs
-- [ ] T218 [P] [US7] Write test: Create draft journal entry, verify audit trail shows creator, timestamp, initial values
+- [X] T218 [P] [US7] Write test: Create draft journal entry, verify audit trail shows creator, timestamp, initial values
 - [ ] T219 [P] [US7] Write test: Modify draft entry, verify audit trail shows each modification with before/after values
 - [ ] T220 [P] [US7] Write test: Post entry to ledger, attempt modification, verify rejection and unauthorized attempt logged
 - [ ] T221 [P] [US7] Write test: Adjusting entry for closed period, verify audit trail documents authorization and approver
-- [ ] T222 [P] [US7] Write test: Query audit trail by transaction ID, verify complete chronological history with all actors
+- [X] T222 [P] [US7] Write test: Query audit trail by transaction ID, verify complete chronological history with all actors
 - [ ] T223 [P] [US7] Write test: Access historical audit data from 7 years ago, verify full integrity
 
 ### Implementation for User Story 7
@@ -464,20 +464,20 @@
 
 - [ ] T224 [US7] Add database migration to revoke UPDATE/DELETE permissions on audit_trail table (append-only enforcement)
 - [ ] T225 [US7] Add database trigger on journal_entries to prevent modification/deletion when status = Posted
-- [ ] T226 [US7] Add database indexes on audit_trail: entity_type + entity_id + timestamp composite, user_id, correlation_id
+- [X] T226 [US7] Add database indexes on audit_trail: entity_type + entity_id + timestamp composite, user_id, correlation_id
 
 #### Services
 
-- [ ] T227 [US7] Update AuditService to capture before/after snapshots using JsonSerializer for all entity changes
-- [ ] T228 [US7] Add audit trail query methods in AuditService: GetByEntityAsync, GetByUserAsync, GetByCorrelationIdAsync
-- [ ] T229 [US7] Add HTTP context integration in AuditService to capture IP address and correlation ID from distributed trace
+- [X] T227 [US7] Update AuditService to capture before/after snapshots using JsonSerializer for all entity changes
+- [X] T228 [US7] Add audit trail query methods in AuditService: GetByEntityAsync, GetByUserAsync, GetByCorrelationIdAsync
+- [X] T229 [US7] Add HTTP context integration in AuditService to capture IP address and correlation ID from distributed trace
 
 #### Integration
 
-- [ ] T230 [US7] Update all services (EventProcessingService, ChartOfAccountsService, PeriodManagementService) to call AuditService for all data changes
+- [X] T230 [US7] Update all services (EventProcessingService, ChartOfAccountsService, PeriodManagementService) to call AuditService for all data changes
 - [ ] T231 [US7] Update JournalEntryService (if created) to prevent modification of posted entries with explicit status check
 - [ ] T232 [US7] Add EF Core SaveChanges interceptor to automatically create audit trail entries for all entity changes
-- [ ] T233 [US7] Run all User Story 7 tests and verify they pass
+- [X] T233 [US7] Run all User Story 7 tests and verify they pass
 - [ ] T234 [US7] Validate audit trail queries complete within 3 seconds per SC-012
 
 **Checkpoint**: User Stories 1-7 complete - Full audit trail and immutability guarantees in place
