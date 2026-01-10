@@ -94,22 +94,14 @@ public class BaseIntegrationTestFactory<TProgram, TDbContext> : WebApplicationFa
 
     public new async Task DisposeAsync()
     {
-        // Explicitly stop MassTransit bus if it was started
-        if (Services != null)
-        {
-            var busControl = Services.GetService<IBusControl>();
-            if (busControl != null)
-            {
-                await busControl.StopAsync();
-            }
-        }
+        // Shutdown host first to gracefully stop background services and MassTransit
+        await base.DisposeAsync();
 
         await _postgresContainer.DisposeAsync();
         await _redisContainer.DisposeAsync();
         await _rabbitmqContainer.DisposeAsync();
         _testRsa.Dispose();
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", null); // Cleanup
-        await base.DisposeAsync();
     }
 
 
@@ -144,7 +136,14 @@ public class BaseIntegrationTestFactory<TProgram, TDbContext> : WebApplicationFa
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Service:Name"] = "AccountingService",
-                ["Service:Version"] = "1.0.0-test"
+                ["Service:Version"] = "1.0.0-test",
+                ["Services:IAMService:BaseUrl"] = "http://localhost:5000",
+                ["Jwt:SecurityKey"] = "test-secret-key-at-least-32-characters-long!!",
+                ["Jwt:Issuer"] = "test-issuer",
+                ["Jwt:Audience"] = "test-audience",
+                [$"ConnectionStrings:{DbConnectionStringName}"] = _postgresContainer.GetConnectionString(),
+                ["ConnectionStrings:redis"] = _redisContainer.GetConnectionString(),
+                ["ConnectionStrings:rabbitmq"] = _rabbitmqContainer.GetConnectionString()
             });
         });
 
