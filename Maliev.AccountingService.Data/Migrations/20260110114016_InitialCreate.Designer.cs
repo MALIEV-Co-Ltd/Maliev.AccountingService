@@ -12,18 +12,20 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Maliev.AccountingService.Data.Migrations
 {
     [DbContext(typeof(AccountingDbContext))]
-    [Migration("20251224073525_SyncModelChanges")]
-    partial class SyncModelChanges
+    [Migration("20260110114016_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.0")
+                .HasAnnotation("ProductVersion", "10.0.1")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.HasSequence("journal_entry_number_seq");
 
             modelBuilder.Entity("Maliev.AccountingService.Data.Models.AdjustingEntryApproval", b =>
                 {
@@ -621,6 +623,18 @@ namespace Maliev.AccountingService.Data.Migrations
                             Code = "accounting.periods.reopen",
                             Description = "Reopen closed periods",
                             IsCritical = true
+                        },
+                        new
+                        {
+                            Code = "accounting.reconciliation.run",
+                            Description = "Run financial reconciliation",
+                            IsCritical = true
+                        },
+                        new
+                        {
+                            Code = "accounting.reconciliation.read",
+                            Description = "Read reconciliation reports",
+                            IsCritical = false
                         });
                 });
 
@@ -908,6 +922,16 @@ namespace Maliev.AccountingService.Data.Migrations
                         },
                         new
                         {
+                            RoleName = "roles.accounting.admin",
+                            PermissionCode = "accounting.reconciliation.run"
+                        },
+                        new
+                        {
+                            RoleName = "roles.accounting.admin",
+                            PermissionCode = "accounting.reconciliation.read"
+                        },
+                        new
+                        {
                             RoleName = "roles.accounting.manager",
                             PermissionCode = "accounting.journal-entries.create"
                         },
@@ -985,6 +1009,16 @@ namespace Maliev.AccountingService.Data.Migrations
                         {
                             RoleName = "roles.accounting.manager",
                             PermissionCode = "accounting.periods.open"
+                        },
+                        new
+                        {
+                            RoleName = "roles.accounting.manager",
+                            PermissionCode = "accounting.reconciliation.run"
+                        },
+                        new
+                        {
+                            RoleName = "roles.accounting.manager",
+                            PermissionCode = "accounting.reconciliation.read"
                         },
                         new
                         {
@@ -1118,6 +1152,16 @@ namespace Maliev.AccountingService.Data.Migrations
                         },
                         new
                         {
+                            RoleName = "roles.accounting.controller",
+                            PermissionCode = "accounting.reconciliation.run"
+                        },
+                        new
+                        {
+                            RoleName = "roles.accounting.controller",
+                            PermissionCode = "accounting.reconciliation.read"
+                        },
+                        new
+                        {
                             RoleName = "roles.accounting.viewer",
                             PermissionCode = "accounting.journal-entries.read"
                         },
@@ -1150,6 +1194,11 @@ namespace Maliev.AccountingService.Data.Migrations
                         {
                             RoleName = "roles.accounting.viewer",
                             PermissionCode = "accounting.reports.export"
+                        },
+                        new
+                        {
+                            RoleName = "roles.accounting.viewer",
+                            PermissionCode = "accounting.reconciliation.read"
                         });
                 });
 
