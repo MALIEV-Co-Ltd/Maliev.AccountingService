@@ -1,59 +1,58 @@
-using Maliev.AccountingService.Data.Models;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Maliev.AccountingService.Data.Data;
 
+/// <summary>
+/// Predefined roles for the Accounting Service.
+/// </summary>
 public static class AccountingPredefinedRoles
 {
-    public static IEnumerable<Role> GetRoles()
+    /// <summary>Administrator role with full access.</summary>
+    public const string Admin = "roles.accounting.admin";
+    /// <summary>Manager role for accounting management.</summary>
+    public const string Manager = "roles.accounting.manager";
+    /// <summary>Clerk role for data entry.</summary>
+    public const string Clerk = "roles.accounting.clerk";
+    /// <summary>Controller role for auditing and periods.</summary>
+    public const string Controller = "roles.accounting.controller";
+    /// <summary>Viewer role for read-only access.</summary>
+    public const string Viewer = "roles.accounting.viewer";
+
+    /// <summary>
+    /// Collection of all predefined roles for the Accounting Service.
+    /// </summary>
+    public static readonly IReadOnlyList<(string RoleId, string Description, string[] Permissions)> All = new List<(string, string, string[])>
     {
-        return new List<Role>
-        {
-            new() { Name = "roles.accounting.admin", Description = "Full access to all accounting operations" },
-            new() { Name = "roles.accounting.manager", Description = "General accounting management access" },
-            new() { Name = "roles.accounting.clerk", Description = "Basic journal and account data entry" },
-            new() { Name = "roles.accounting.controller", Description = "Advanced accounting and period management" },
-            new() { Name = "roles.accounting.viewer", Description = "Read-only access to accounting data and reports" }
-        };
-    }
+        (Admin, "Full access to all accounting operations", AccountingPermissions.AllWithDescriptions.Keys.ToArray()),
 
-    public static IEnumerable<RolePermission> GetRolePermissions()
+        (Manager, "General accounting management access", AccountingPermissions.AllWithDescriptions.Keys
+            .Where(p => p != AccountingPermissions.PeriodsClose && p != AccountingPermissions.PeriodsReopen).ToArray()),
+
+        (Clerk, "Basic journal and account data entry", new[]
+        {
+            AccountingPermissions.JournalEntriesCreate,
+            AccountingPermissions.JournalEntriesRead,
+            AccountingPermissions.AccountsRead
+        }.Concat(AccountingPermissions.AllWithDescriptions.Keys.Where(p => p.StartsWith("accounting.reports."))).ToArray()),
+
+        (Controller, "Advanced accounting and period management", AccountingPermissions.AllWithDescriptions.Keys.ToArray()),
+
+        (Viewer, "Read-only access to accounting data and reports", AccountingPermissions.AllWithDescriptions.Keys
+            .Where(p => p.EndsWith(".read") || p.StartsWith("accounting.reports.")).ToArray())
+    };
+
+    /// <summary>
+    /// Gets all role-permission mappings for testing and registration.
+    /// </summary>
+    public static IEnumerable<(string RoleName, string PermissionCode)> GetRolePermissions()
     {
-        var allPermissions = AccountingPermissions.GetPermissions().Select(p => p.Code).ToList();
-        var roles = new List<RolePermission>();
-
-        // roles.accounting.admin: All permissions
-        foreach (var p in allPermissions)
+        foreach (var role in All)
         {
-            roles.Add(new RolePermission { RoleName = "roles.accounting.admin", PermissionCode = p });
+            foreach (var permission in role.Permissions)
+            {
+                yield return (role.RoleId, permission);
+            }
         }
-
-        // roles.accounting.manager: All except periods.close, periods.reopen
-        foreach (var p in allPermissions.Where(p => p != "accounting.periods.close" && p != "accounting.periods.reopen"))
-        {
-            roles.Add(new RolePermission { RoleName = "roles.accounting.manager", PermissionCode = p });
-        }
-
-        // roles.accounting.clerk: journal-entries.create/read, accounts.read, reports.*
-        var clerkPerms = new List<string> { "accounting.journal-entries.create", "accounting.journal-entries.read", "accounting.accounts.read" };
-        clerkPerms.AddRange(allPermissions.Where(p => p.StartsWith("accounting.reports.")));
-        foreach (var p in clerkPerms)
-        {
-            roles.Add(new RolePermission { RoleName = "roles.accounting.clerk", PermissionCode = p });
-        }
-
-        // roles.accounting.controller: journal-entries.*, accounts.*, periods.*, reports.*
-        foreach (var p in allPermissions)
-        {
-            roles.Add(new RolePermission { RoleName = "roles.accounting.controller", PermissionCode = p });
-        }
-
-        // roles.accounting.viewer: *.read, reports.*
-        var viewerPerms = allPermissions.Where(p => p.EndsWith(".read") || p.StartsWith("accounting.reports.")).ToList();
-        foreach (var p in viewerPerms)
-        {
-            roles.Add(new RolePermission { RoleName = "roles.accounting.viewer", PermissionCode = p });
-        }
-
-        return roles.DistinctBy(rp => new { rp.RoleName, rp.PermissionCode });
     }
 }

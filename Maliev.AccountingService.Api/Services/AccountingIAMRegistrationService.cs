@@ -1,5 +1,7 @@
 using Maliev.Aspire.ServiceDefaults.IAM;
 using Maliev.AccountingService.Data.Data;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Maliev.AccountingService.Api.Services;
 
@@ -12,12 +14,12 @@ public class AccountingIAMRegistrationService : IAMRegistrationService
     /// <summary>
     /// Initializes a new instance of the <see cref="AccountingIAMRegistrationService"/> class.
     /// </summary>
-    /// <param name="httpClientFactory">The HTTP client factory.</param>
+    /// <param name="configuration">Application configuration.</param>
     /// <param name="logger">The logger.</param>
     public AccountingIAMRegistrationService(
-        IHttpClientFactory httpClientFactory,
+        Microsoft.Extensions.Configuration.IConfiguration configuration,
         ILogger<AccountingIAMRegistrationService> logger)
-        : base(httpClientFactory, logger, "accounting")
+        : base(configuration, logger, "accounting")
     {
     }
 
@@ -27,10 +29,10 @@ public class AccountingIAMRegistrationService : IAMRegistrationService
     /// <returns>A collection of permission registrations.</returns>
     protected override IEnumerable<PermissionRegistration> GetPermissions()
     {
-        return AccountingPermissions.GetPermissions().Select(p => new PermissionRegistration
+        return AccountingPermissions.AllWithDescriptions.Select(p => new PermissionRegistration
         {
-            PermissionId = p.Code,
-            Description = p.Description
+            PermissionId = p.Key,
+            Description = p.Value
         });
     }
 
@@ -40,16 +42,11 @@ public class AccountingIAMRegistrationService : IAMRegistrationService
     /// <returns>A collection of role registrations.</returns>
     protected override IEnumerable<RoleRegistration> GetPredefinedRoles()
     {
-        var rolePermissions = AccountingPredefinedRoles.GetRolePermissions().ToList();
-
-        return AccountingPredefinedRoles.GetRoles().Select(r => new RoleRegistration
+        return AccountingPredefinedRoles.All.Select(r => new RoleRegistration
         {
-            RoleId = r.Name,
+            RoleId = r.RoleId,
             Description = r.Description,
-            PermissionIds = rolePermissions
-                .Where(rp => rp.RoleName == r.Name)
-                .Select(rp => rp.PermissionCode)
-                .ToList(),
+            PermissionIds = r.Permissions.ToList(),
             IsCustom = false
         });
     }
