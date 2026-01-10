@@ -22,6 +22,8 @@ namespace Maliev.AccountingService.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.HasSequence("journal_entry_number_seq");
+
             modelBuilder.Entity("Maliev.AccountingService.Data.Models.AdjustingEntryApproval", b =>
                 {
                     b.Property<Guid>("Id")

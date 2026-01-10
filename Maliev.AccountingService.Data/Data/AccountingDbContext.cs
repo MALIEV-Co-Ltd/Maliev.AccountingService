@@ -31,6 +31,11 @@ public class AccountingDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        // Configure Sequence for Journal Entry Numbers
+        modelBuilder.HasSequence<long>("journal_entry_number_seq")
+            .StartsAt(1)
+            .IncrementsBy(1);
+
         // Configure ChartOfAccount
         modelBuilder.Entity<ChartOfAccount>(entity =>
         {
@@ -220,11 +225,52 @@ public class AccountingDbContext : DbContext
         });
 
         // Seed Authorization Data
-        modelBuilder.Entity<Permission>().HasData(AccountingPermissions.GetPermissions());
-        modelBuilder.Entity<Role>().HasData(AccountingPredefinedRoles.GetRoles());
-        modelBuilder.Entity<RolePermission>().HasData(AccountingPredefinedRoles.GetRolePermissions());
+        modelBuilder.Entity<Permission>().HasData(
+            AccountingPermissions.AllWithDescriptions.Select(p => new Permission
+            {
+                Code = p.Key,
+                Description = p.Value,
+                IsCritical = AccountingPermissions.CriticalPermissions.Contains(p.Key)
+            }));
+
+        modelBuilder.Entity<Role>().HasData(
+            AccountingPredefinedRoles.All.Select(r => new Role
+            {
+                Name = r.RoleId,
+                Description = r.Description
+            }));
+
+        var rolePermissions = new List<RolePermission>();
+        foreach (var role in AccountingPredefinedRoles.All)
+        {
+            foreach (var permission in role.Permissions)
+            {
+                rolePermissions.Add(new RolePermission
+                {
+                    RoleName = role.RoleId,
+                    PermissionCode = permission
+                });
+            }
+        }
+        modelBuilder.Entity<RolePermission>().HasData(rolePermissions);
 
         // Apply PostgreSQL snake_case naming convention globally
         SnakeCaseNamingHelper.ApplySnakeCaseNaming(modelBuilder);
+
+        // Global converter for UTC DateTime to prevent Npgsql.UnspecifiedKind exceptions
+        var dateTimeConverter = new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime, DateTime>(
+            v => v.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(v, DateTimeKind.Utc) : v.ToUniversalTime(),
+            v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            foreach (var property in entityType.GetProperties())
+            {
+                if (property.ClrType == typeof(DateTime) || property.ClrType == typeof(DateTime?))
+                {
+                    property.SetValueConverter(dateTimeConverter);
+                }
+            }
+        }
     }
 }

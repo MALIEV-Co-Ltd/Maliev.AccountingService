@@ -157,16 +157,19 @@ public class BulkImportService : IBulkImportService
             result.TotalRecords = balances.Count;
             _logger.LogInformation("Found {Count} opening balances to import", balances.Count);
 
+            // Pre-fetch all referenced accounts to avoid N+1 queries during validation and import
+            var accountNumbers = balances.Select(b => b.AccountNumber).Distinct().ToList();
+            var existingAccounts = await _dbContext.ChartOfAccounts
+                .Where(a => accountNumbers.Contains(a.AccountNumber))
+                .ToDictionaryAsync(a => a.AccountNumber);
+
             // Validate balances
             decimal totalDebits = 0;
             decimal totalCredits = 0;
 
             foreach (var balance in balances)
             {
-                var account = await _dbContext.ChartOfAccounts
-                    .FirstOrDefaultAsync(a => a.AccountNumber == balance.AccountNumber);
-
-                if (account == null)
+                if (!existingAccounts.TryGetValue(balance.AccountNumber, out var account))
                 {
                     result.Errors.Add($"Account not found: {balance.AccountNumber}");
                     continue;
@@ -222,8 +225,7 @@ public class BulkImportService : IBulkImportService
             int seq = 1;
             foreach (var balance in balances)
             {
-                var account = await _dbContext.ChartOfAccounts
-                    .FirstAsync(a => a.AccountNumber == balance.AccountNumber);
+                var account = existingAccounts[balance.AccountNumber];
 
                 journalEntry.Lines.Add(new JournalEntryLine
                 {
