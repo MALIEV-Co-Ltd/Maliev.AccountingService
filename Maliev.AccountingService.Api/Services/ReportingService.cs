@@ -50,26 +50,11 @@ public class ReportingService : IReportingService
             {
                 AccountNumber = g.Key.AccountNumber,
                 AccountName = g.Key.Name,
-                DebitBalance = g.Sum(l => l.DebitAmount),
-                CreditBalance = g.Sum(l => l.CreditAmount)
+                DebitBalance = g.Sum(l => l.DebitAmount - l.CreditAmount) > 0 ? g.Sum(l => l.DebitAmount - l.CreditAmount) : 0,
+                CreditBalance = g.Sum(l => l.CreditAmount - l.DebitAmount) > 0 ? g.Sum(l => l.CreditAmount - l.DebitAmount) : 0
             })
             .OrderBy(l => l.AccountNumber)
             .ToListAsync(cancellationToken);
-
-        // For Trial Balance, we usually show the NET balance per account
-        foreach (var line in accountBalances)
-        {
-            if (line.DebitBalance > line.CreditBalance)
-            {
-                line.DebitBalance -= line.CreditBalance;
-                line.CreditBalance = 0;
-            }
-            else
-            {
-                line.CreditBalance -= line.DebitBalance;
-                line.DebitBalance = 0;
-            }
-        }
 
         return new TrialBalanceResponse
         {

@@ -50,7 +50,6 @@ builder.Services.AddControllers();
 builder.Services.AddMemoryCache();
 
 // Register application services
-builder.AddIAMServiceClient();
 builder.Services.AddScoped<Maliev.AccountingService.Api.Services.IEventProcessingService,
     Maliev.AccountingService.Api.Services.EventProcessingService>();
 builder.Services.AddScoped<Maliev.AccountingService.Api.Services.IEventIdempotencyService,
@@ -74,9 +73,8 @@ builder.Services.AddScoped<Maliev.AccountingService.Api.Services.IPeriodService,
 builder.Services.AddPermissionAuthorization();
 
 // IAM Registration
-// Note: IHttpClientFactory is already registered by ASP.NET Core framework in .NET 6+
-// No need for explicit AddHttpClient() call - IAMRegistrationService uses IHttpClientFactory
-builder.Services.AddIAMRegistration<AccountingIAMRegistrationService>();
+builder.AddIAMServiceClient("accounting");
+builder.Services.AddIAMRegistration<AccountingIAMRegistrationService>("accounting");
 
 // Register metrics
 builder.Services.AddSingleton<Maliev.AccountingService.Api.Metrics.AccountingMetrics>();
@@ -90,7 +88,10 @@ await app.MigrateDatabaseAsync<AccountingDbContext>();
 // Middleware Pipeline
 app.UseStandardMiddleware();
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 app.UseCors();
 
 app.UseAuthentication();

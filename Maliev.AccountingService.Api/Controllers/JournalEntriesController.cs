@@ -90,9 +90,9 @@ public class JournalEntriesController : ControllerBase
 
         if (endDate.HasValue)
         {
-            var utcEnd = endDate.Value.Kind == DateTimeKind.Unspecified
+            var utcEnd = (endDate.Value.Kind == DateTimeKind.Unspecified
                 ? DateTime.SpecifyKind(endDate.Value, DateTimeKind.Utc)
-                : endDate.Value.ToUniversalTime();
+                : endDate.Value.ToUniversalTime()).Date.AddDays(1).AddTicks(-1);
             query = query.Where(j => j.EntryDate <= utcEnd);
         }
 
@@ -182,103 +182,124 @@ public class JournalEntriesController : ControllerBase
         await _periodService.ValidatePeriodForPostingAsync(period.Id, isAdjustingEntry: false);
 
         // Get current user
-        var userId = Guid.Empty; // TODO: Get from claims
+        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var userId = Guid.TryParse(userIdClaim, out var guid) ? guid : Guid.Empty;
 
-        var journalEntry = new JournalEntry
+        // Use execution strategy for retries with user-initiated transactions
+        var strategy = _context.Database.CreateExecutionStrategy();
+
+        return await strategy.ExecuteAsync(async () =>
         {
-            Id = Guid.NewGuid(),
-            PeriodId = period.Id,
-            EntryNumber = await _periodService.GenerateEntryNumberAsync(period.Id),
-            EntryDate = request.EntryDate,
-            Description = request.Description,
-            Status = EntryStatus.Draft,
-            CreatedBy = userId,
-            TotalDebit = totalDebit,
-            TotalCredit = totalCredit
-        };
+            using var transaction = await _context.Database.BeginTransactionAsync();
 
-        // Pre-fetch all referenced account IDs to avoid N+1 queries
-        var accountIds = request.Lines.Select(l => l.AccountId).Distinct().ToList();
-        var accounts = await _context.ChartOfAccounts
-            .Where(a => accountIds.Contains(a.Id) && a.IsActive)
-            .ToDictionaryAsync(a => a.Id);
-
-        int lineSequence = 1;
-        foreach (var lineRequest in request.Lines)
-        {
-            // Validate account exists and is active
-            if (!accounts.TryGetValue(lineRequest.AccountId, out var account))
+            try
             {
-                return BadRequest(new { message = $"Account {lineRequest.AccountId} not found or is inactive" });
-            }
-
-            var line = new JournalEntryLine
-            {
-                Id = Guid.NewGuid(),
-                JournalEntryId = journalEntry.Id,
-                AccountId = lineRequest.AccountId,
-                LineSequence = lineSequence++,
-                Description = lineRequest.Description,
-                DebitAmount = lineRequest.DebitAmount,
-                CreditAmount = lineRequest.CreditAmount,
-                CustomerId = lineRequest.CustomerId,
-                SupplierId = lineRequest.SupplierId,
-                ReferenceId = lineRequest.Reference
-            };
-
-            // Add tax components if present
-            if (lineRequest.TaxComponents != null)
-            {
-                foreach (var taxRequest in lineRequest.TaxComponents)
+                var journalEntry = new JournalEntry
                 {
-                    line.TaxComponents.Add(new TaxComponent
+                    Id = Guid.NewGuid(),
+                    PeriodId = period.Id,
+                    EntryNumber = await _periodService.GenerateEntryNumberAsync(period.Id),
+                    EntryDate = request.EntryDate.Kind == DateTimeKind.Unspecified
+                        ? DateTime.SpecifyKind(request.EntryDate, DateTimeKind.Utc)
+                        : request.EntryDate.ToUniversalTime(),
+                    Description = request.Description,
+                    Status = EntryStatus.Draft,
+                    CreatedBy = userId,
+                    TotalDebit = totalDebit,
+                    TotalCredit = totalCredit
+                };
+
+                // Pre-fetch all referenced account IDs to avoid N+1 queries
+                var accountIds = request.Lines.Select(l => l.AccountId).Distinct().ToList();
+                var accounts = await _context.ChartOfAccounts
+                    .Where(a => accountIds.Contains(a.Id) && a.IsActive)
+                    .ToDictionaryAsync(a => a.Id);
+
+                int lineSequence = 1;
+                foreach (var lineRequest in request.Lines)
+                {
+                    // Validate account exists and is active
+                    if (!accounts.TryGetValue(lineRequest.AccountId, out var account))
+                    {
+                        return (ActionResult<JournalEntryResponse>)BadRequest(new { message = $"Account {lineRequest.AccountId} not found or is inactive" });
+                    }
+
+                    var line = new JournalEntryLine
                     {
                         Id = Guid.NewGuid(),
-                        JournalEntryLineId = line.Id,
-                        TaxType = taxRequest.TaxType,
-                        TaxRate = taxRequest.TaxRate,
-                        TaxableAmount = taxRequest.TaxableAmount,
-                        TaxAmount = taxRequest.TaxAmount
-                    });
+                        JournalEntryId = journalEntry.Id,
+                        AccountId = lineRequest.AccountId,
+                        LineSequence = lineSequence++,
+                        Description = lineRequest.Description,
+                        DebitAmount = lineRequest.DebitAmount,
+                        CreditAmount = lineRequest.CreditAmount,
+                        CustomerId = lineRequest.CustomerId,
+                        SupplierId = lineRequest.SupplierId,
+                        ReferenceId = lineRequest.Reference
+                    };
+
+                    // Add tax components if present
+                    if (lineRequest.TaxComponents != null)
+                    {
+                        foreach (var taxRequest in lineRequest.TaxComponents)
+                        {
+                            line.TaxComponents.Add(new TaxComponent
+                            {
+                                Id = Guid.NewGuid(),
+                                JournalEntryLineId = line.Id,
+                                TaxType = taxRequest.TaxType,
+                                TaxRate = taxRequest.TaxRate,
+                                TaxableAmount = taxRequest.TaxableAmount,
+                                TaxAmount = taxRequest.TaxAmount
+                            });
+                        }
+                    }
+
+                    journalEntry.Lines.Add(line);
                 }
+
+                _context.JournalEntries.Add(journalEntry);
+                await _context.SaveChangesAsync();
+
+                // Record audit trail
+                await _auditService.RecordAuditAsync(
+                    "JournalEntry",
+                    journalEntry.Id.ToString(),
+                    "Created",
+                    null,
+                    journalEntry,
+                    userId.ToString(),
+                    HttpContext.TraceIdentifier,
+                    HttpContext.Connection.RemoteIpAddress?.ToString(),
+                    HttpContext.RequestAborted);
+
+                await transaction.CommitAsync();
+
+                _logger.LogInformation(
+                    "Created draft journal entry {JournalEntryId} by user {UserId}",
+                    journalEntry.Id,
+                    userId);
+
+                // Reload with includes for response
+                var createdEntry = await _context.JournalEntries
+                    .Include(j => j.Period)
+                    .Include(j => j.Lines)
+                        .ThenInclude(l => l.Account)
+                    .Include(j => j.Lines)
+                        .ThenInclude(l => l.TaxComponents)
+                    .FirstAsync(j => j.Id == journalEntry.Id);
+
+                return CreatedAtAction(
+                    nameof(GetJournalEntry),
+                    new { id = journalEntry.Id },
+                    createdEntry.ToResponse());
             }
-
-            journalEntry.Lines.Add(line);
-        }
-
-        _context.JournalEntries.Add(journalEntry);
-        await _context.SaveChangesAsync();
-
-        // Record audit trail
-        await _auditService.RecordAuditAsync(
-            "JournalEntry",
-            journalEntry.Id.ToString(),
-            "Created",
-            null,
-            journalEntry,
-            userId.ToString(),
-            HttpContext.TraceIdentifier,
-            HttpContext.Connection.RemoteIpAddress?.ToString(),
-            HttpContext.RequestAborted);
-
-        _logger.LogInformation(
-            "Created draft journal entry {JournalEntryId} by user {UserId}",
-            journalEntry.Id,
-            userId);
-
-        // Reload with includes for response
-        var createdEntry = await _context.JournalEntries
-            .Include(j => j.Period)
-            .Include(j => j.Lines)
-                .ThenInclude(l => l.Account)
-            .Include(j => j.Lines)
-                .ThenInclude(l => l.TaxComponents)
-            .FirstAsync(j => j.Id == journalEntry.Id);
-
-        return CreatedAtAction(
-            nameof(GetJournalEntry),
-            new { id = journalEntry.Id },
-            createdEntry.ToResponse());
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        });
     }
 
     /// <summary>
@@ -315,32 +336,50 @@ public class JournalEntriesController : ControllerBase
             return BadRequest(new { message = "Journal entry is not balanced" });
         }
 
-        var userId = Guid.Empty; // TODO: Get from claims
+        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var userId = Guid.TryParse(userIdClaim, out var guid) ? guid : Guid.Empty;
         var beforeState = entry.Status;
 
-        entry.Status = EntryStatus.Posted;
-        entry.PostedAt = DateTime.UtcNow;
-        entry.PostedBy = userId;
+        var strategy = _context.Database.CreateExecutionStrategy();
 
-        await _context.SaveChangesAsync();
+        return await strategy.ExecuteAsync(async () =>
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
 
-        // Record audit trail
-        await _auditService.RecordAuditAsync(
-            "JournalEntry",
-            entry.Id.ToString(),
-            "Posted",
-            beforeState,
-            entry.Status,
-            userId.ToString(),
-            HttpContext.TraceIdentifier,
-            HttpContext.Connection.RemoteIpAddress?.ToString(),
-            HttpContext.RequestAborted);
+            try
+            {
+                entry.Status = EntryStatus.Posted;
+                entry.PostedAt = DateTime.UtcNow;
+                entry.PostedBy = userId;
 
-        _logger.LogInformation(
-            "Posted journal entry {JournalEntryId} by user {UserId}",
-            entry.Id,
-            userId);
+                await _context.SaveChangesAsync();
 
-        return Ok(entry.ToResponse());
+                // Record audit trail
+                await _auditService.RecordAuditAsync(
+                    "JournalEntry",
+                    entry.Id.ToString(),
+                    "Posted",
+                    beforeState,
+                    entry.Status,
+                    userId.ToString(),
+                    HttpContext.TraceIdentifier,
+                    HttpContext.Connection.RemoteIpAddress?.ToString(),
+                    HttpContext.RequestAborted);
+
+                await transaction.CommitAsync();
+
+                _logger.LogInformation(
+                    "Posted journal entry {JournalEntryId} by user {UserId}",
+                    entry.Id,
+                    userId);
+
+                return Ok(entry.ToResponse());
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        });
     }
 }

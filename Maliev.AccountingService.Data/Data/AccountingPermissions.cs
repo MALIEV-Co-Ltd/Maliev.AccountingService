@@ -1,80 +1,106 @@
-using Maliev.AccountingService.Data.Models;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Maliev.AccountingService.Data.Data;
 
 /// <summary>
 /// Defines permission constants for the Accounting Service.
-/// Note: Constants include "Permission:" prefix for integration with ServiceDefaults policy provider.
+/// Follows GCP-style naming: {service}.{resource}.{action}
 /// </summary>
 public static class AccountingPermissions
 {
     // Journal Entry Operations
-    public const string JournalEntriesCreate = "Permission:accounting.journal-entries.create";
-    public const string JournalEntriesRead = "Permission:accounting.journal-entries.read";
-    public const string JournalEntriesUpdate = "Permission:accounting.journal-entries.update";
-    public const string JournalEntriesPost = "Permission:accounting.journal-entries.post";
-    public const string JournalEntriesReverse = "Permission:accounting.journal-entries.reverse";
+    /// <summary>Permission to create journal entries.</summary>
+    public const string JournalEntriesCreate = "accounting.journal-entries.create";
+    /// <summary>Permission to read journal entries.</summary>
+    public const string JournalEntriesRead = "accounting.journal-entries.read";
+    /// <summary>Permission to update journal entries.</summary>
+    public const string JournalEntriesUpdate = "accounting.journal-entries.update";
+    /// <summary>Permission to post journal entries.</summary>
+    public const string JournalEntriesPost = "accounting.journal-entries.post";
+    /// <summary>Permission to reverse journal entries.</summary>
+    public const string JournalEntriesReverse = "accounting.journal-entries.reverse";
 
     // Account Operations
-    public const string AccountsCreate = "Permission:accounting.accounts.create";
-    public const string AccountsRead = "Permission:accounting.accounts.read";
-    public const string AccountsUpdate = "Permission:accounting.accounts.update";
-    public const string AccountsDelete = "Permission:accounting.accounts.delete";
-    public const string AccountsClose = "Permission:accounting.accounts.close";
+    /// <summary>Permission to create accounts.</summary>
+    public const string AccountsCreate = "accounting.accounts.create";
+    /// <summary>Permission to read accounts.</summary>
+    public const string AccountsRead = "accounting.accounts.read";
+    /// <summary>Permission to update accounts.</summary>
+    public const string AccountsUpdate = "accounting.accounts.update";
+    /// <summary>Permission to delete accounts.</summary>
+    public const string AccountsDelete = "accounting.accounts.delete";
+    /// <summary>Permission to close accounts.</summary>
+    public const string AccountsClose = "accounting.accounts.close";
 
     // Financial Report Operations
-    public const string ReportsBalanceSheet = "Permission:accounting.reports.balance-sheet";
-    public const string ReportsIncomeStatement = "Permission:accounting.reports.income-statement";
-    public const string ReportsCashFlow = "Permission:accounting.reports.cash-flow";
-    public const string ReportsTrialBalance = "Permission:accounting.reports.trial-balance";
-    public const string ReportsExport = "Permission:accounting.reports.export";
+    /// <summary>Permission to view balance sheet.</summary>
+    public const string ReportsBalanceSheet = "accounting.reports.balance-sheet";
+    /// <summary>Permission to view income statement.</summary>
+    public const string ReportsIncomeStatement = "accounting.reports.income-statement";
+    /// <summary>Permission to view cash flow statement.</summary>
+    public const string ReportsCashFlow = "accounting.reports.cash-flow";
+    /// <summary>Permission to view trial balance.</summary>
+    public const string ReportsTrialBalance = "accounting.reports.trial-balance";
+    /// <summary>Permission to export reports.</summary>
+    public const string ReportsExport = "accounting.reports.export";
 
     // Period Operations
-    public const string PeriodsOpen = "Permission:accounting.periods.open";
-    public const string PeriodsClose = "Permission:accounting.periods.close";
-    public const string PeriodsReopen = "Permission:accounting.periods.reopen";
+    /// <summary>Permission to open periods.</summary>
+    public const string PeriodsOpen = "accounting.periods.open";
+    /// <summary>Permission to close periods.</summary>
+    public const string PeriodsClose = "accounting.periods.close";
+    /// <summary>Permission to reopen periods.</summary>
+    public const string PeriodsReopen = "accounting.periods.reopen";
 
     // Reconciliation Operations
-    public const string ReconciliationRun = "Permission:accounting.reconciliation.run";
-    public const string ReconciliationRead = "Permission:accounting.reconciliation.read";
+    /// <summary>Permission to run reconciliation.</summary>
+    public const string ReconciliationRun = "accounting.reconciliation.run";
+    /// <summary>Permission to read reconciliation results.</summary>
+    public const string ReconciliationRead = "accounting.reconciliation.read";
 
     /// <summary>
-    /// Gets the list of permissions for registration with IAM.
-    /// Strips the "Permission:" prefix from codes.
+    /// Collection of all defined accounting permissions with descriptions.
     /// </summary>
-    public static IEnumerable<Permission> GetPermissions()
+    public static readonly IReadOnlyDictionary<string, string> AllWithDescriptions = new Dictionary<string, string>
     {
-        return new List<Permission>
-        {
-            // Journal Entry Operations
-            new() { Code = JournalEntriesCreate.Replace("Permission:", ""), Description = "Create journal entries", IsCritical = false },
-            new() { Code = JournalEntriesRead.Replace("Permission:", ""), Description = "Read journal entries", IsCritical = false },
-            new() { Code = JournalEntriesUpdate.Replace("Permission:", ""), Description = "Update journal entries", IsCritical = false },
-            new() { Code = JournalEntriesPost.Replace("Permission:", ""), Description = "Post journal entries", IsCritical = true },
-            new() { Code = JournalEntriesReverse.Replace("Permission:", ""), Description = "Reverse journal entries", IsCritical = true },
+        { JournalEntriesCreate, "Create journal entries" },
+        { JournalEntriesRead, "Read journal entries" },
+        { JournalEntriesUpdate, "Update journal entries" },
+        { JournalEntriesPost, "Post journal entries" },
+        { JournalEntriesReverse, "Reverse journal entries" },
+        { AccountsCreate, "Create chart of accounts" },
+        { AccountsRead, "Read account details" },
+        { AccountsUpdate, "Update accounts" },
+        { AccountsDelete, "Deactivate accounts" },
+        { AccountsClose, "Close accounts" },
+        { ReportsBalanceSheet, "View balance sheet" },
+        { ReportsIncomeStatement, "View income statement" },
+        { ReportsCashFlow, "View cash flow statement" },
+        { ReportsTrialBalance, "View trial balance" },
+        { ReportsExport, "Export financial reports" },
+        { PeriodsOpen, "Open accounting periods" },
+        { PeriodsClose, "Close accounting periods" },
+        { PeriodsReopen, "Reopen closed periods" },
+        { ReconciliationRun, "Run financial reconciliation" },
+        { ReconciliationRead, "Read reconciliation reports" }
+    };
 
-            // Account Operations
-            new() { Code = AccountsCreate.Replace("Permission:", ""), Description = "Create chart of accounts", IsCritical = false },
-            new() { Code = AccountsRead.Replace("Permission:", ""), Description = "Read account details", IsCritical = false },
-            new() { Code = AccountsUpdate.Replace("Permission:", ""), Description = "Update accounts", IsCritical = false },
-            new() { Code = AccountsDelete.Replace("Permission:", ""), Description = "Deactivate accounts", IsCritical = false },
-            new() { Code = AccountsClose.Replace("Permission:", ""), Description = "Close accounts", IsCritical = true },
+    /// <summary>
+    /// Gets the list of all permission codes.
+    /// </summary>
+    public static IEnumerable<string> All => AllWithDescriptions.Keys;
 
-            // Financial Report Operations
-            new() { Code = ReportsBalanceSheet.Replace("Permission:", ""), Description = "View balance sheet", IsCritical = false },
-            new() { Code = ReportsIncomeStatement.Replace("Permission:", ""), Description = "View income statement", IsCritical = false },
-            new() { Code = ReportsCashFlow.Replace("Permission:", ""), Description = "View cash flow statement", IsCritical = false },
-            new() { Code = ReportsTrialBalance.Replace("Permission:", ""), Description = "View trial balance", IsCritical = false },
-            new() { Code = ReportsExport.Replace("Permission:", ""), Description = "Export financial reports", IsCritical = false },
-
-            // Period Operations
-            new() { Code = PeriodsOpen.Replace("Permission:", ""), Description = "Open accounting periods", IsCritical = false },
-            new() { Code = PeriodsClose.Replace("Permission:", ""), Description = "Close accounting periods", IsCritical = true },
-            new() { Code = PeriodsReopen.Replace("Permission:", ""), Description = "Reopen closed periods", IsCritical = true },
-
-            // Reconciliation Operations
-            new() { Code = ReconciliationRun.Replace("Permission:", ""), Description = "Run financial reconciliation", IsCritical = true },
-            new() { Code = ReconciliationRead.Replace("Permission:", ""), Description = "Read reconciliation reports", IsCritical = false }
-        };
-    }
+    /// <summary>
+    /// Collection of permissions that are considered critical and require additional security checks.
+    /// </summary>
+    public static readonly IReadOnlySet<string> CriticalPermissions = new HashSet<string>
+    {
+        JournalEntriesPost,
+        JournalEntriesReverse,
+        AccountsClose,
+        PeriodsClose,
+        PeriodsReopen,
+        ReconciliationRun
+    };
 }

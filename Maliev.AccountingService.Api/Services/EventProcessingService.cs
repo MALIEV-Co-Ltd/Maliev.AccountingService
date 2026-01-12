@@ -120,7 +120,7 @@ public class EventProcessingService : IEventProcessingService
                     Id = Guid.NewGuid(),
                     PeriodId = period.Id,
                     EntryNumber = await _periodService.GenerateEntryNumberAsync(period.Id, cancellationToken),
-                    EntryDate = @event.InvoiceDate,
+                    EntryDate = @event.InvoiceDate.ToUniversalTime(),
                     Description = $"Sales Invoice {@event.InvoiceNumber} - Customer {@event.CustomerId}",
                     Status = EntryStatus.Posted,
                     SourceSystem = "Sales",
@@ -211,7 +211,7 @@ public class EventProcessingService : IEventProcessingService
                     SourceSystem = "Sales",
                     TransactionType = "Invoice",
                     SourceTransactionId = @event.InvoiceId.ToString(),
-                    TransactionDate = @event.InvoiceDate,
+                    TransactionDate = @event.InvoiceDate.ToUniversalTime(),
                     Amount = @event.TotalAmount,
                     CustomerId = @event.CustomerId
                 };
@@ -242,10 +242,10 @@ public class EventProcessingService : IEventProcessingService
                     null,
                     cancellationToken);
 
-                // Mark event as processed in Redis
-                await _idempotencyService.MarkEventAsProcessedAsync(@event.EventId.ToString(), journalEntry.Id, cancellationToken);
-
                 await transaction.CommitAsync(cancellationToken);
+
+                // Mark event as processed in Redis only after successful DB commit
+                await _idempotencyService.MarkEventAsProcessedAsync(@event.EventId.ToString(), journalEntry.Id, cancellationToken);
 
                 // Publish TransactionPostedEvent after commit
                 await _publishEndpoint.Publish(new TransactionPostedEvent
@@ -325,7 +325,7 @@ public class EventProcessingService : IEventProcessingService
                     Id = Guid.NewGuid(),
                     PeriodId = period.Id,
                     EntryNumber = await _periodService.GenerateEntryNumberAsync(period.Id, cancellationToken),
-                    EntryDate = @event.PaymentDate,
+                    EntryDate = @event.PaymentDate.ToUniversalTime(),
                     Description = $"Payment {@event.PaymentNumber} - {@event.PaymentMethod}",
                     Status = EntryStatus.Posted,
                     SourceSystem = "Sales",
@@ -383,7 +383,7 @@ public class EventProcessingService : IEventProcessingService
                     SourceSystem = "Sales",
                     TransactionType = "Payment",
                     SourceTransactionId = @event.PaymentId.ToString(),
-                    TransactionDate = @event.PaymentDate,
+                    TransactionDate = @event.PaymentDate.ToUniversalTime(),
                     Amount = @event.Amount,
                     CustomerId = @event.CustomerId
                 };
@@ -411,8 +411,10 @@ public class EventProcessingService : IEventProcessingService
                     null,
                     cancellationToken);
 
-                await _idempotencyService.MarkEventAsProcessedAsync(@event.EventId.ToString(), journalEntry.Id, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
+
+                // Mark event as processed in Redis only after successful DB commit
+                await _idempotencyService.MarkEventAsProcessedAsync(@event.EventId.ToString(), journalEntry.Id, cancellationToken);
 
                 // Publish TransactionPostedEvent after commit
                 await _publishEndpoint.Publish(new TransactionPostedEvent
@@ -478,7 +480,7 @@ public class EventProcessingService : IEventProcessingService
                     Id = Guid.NewGuid(),
                     PeriodId = period.Id,
                     EntryNumber = await _periodService.GenerateEntryNumberAsync(period.Id, cancellationToken),
-                    EntryDate = @event.InvoiceDate,
+                    EntryDate = @event.InvoiceDate.ToUniversalTime(),
                     Description = $"Supplier Invoice {@event.InvoiceNumber} - Supplier {@event.SupplierId}",
                     Status = EntryStatus.Posted,
                     SourceSystem = "Procurement",
@@ -566,7 +568,7 @@ public class EventProcessingService : IEventProcessingService
                     SourceSystem = "Procurement",
                     TransactionType = "SupplierInvoice",
                     SourceTransactionId = @event.InvoiceId.ToString(),
-                    TransactionDate = @event.InvoiceDate,
+                    TransactionDate = @event.InvoiceDate.ToUniversalTime(),
                     Amount = @event.TotalAmount,
                     SupplierId = @event.SupplierId
                 };
@@ -594,8 +596,10 @@ public class EventProcessingService : IEventProcessingService
                     null,
                     cancellationToken);
 
-                await _idempotencyService.MarkEventAsProcessedAsync(@event.EventId.ToString(), journalEntry.Id, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
+
+                // Mark event as processed in Redis only after successful DB commit
+                await _idempotencyService.MarkEventAsProcessedAsync(@event.EventId.ToString(), journalEntry.Id, cancellationToken);
 
                 // Publish TransactionPostedEvent after commit
                 await _publishEndpoint.Publish(new TransactionPostedEvent
@@ -661,7 +665,7 @@ public class EventProcessingService : IEventProcessingService
                     Id = Guid.NewGuid(),
                     PeriodId = period.Id,
                     EntryNumber = await _periodService.GenerateEntryNumberAsync(period.Id, cancellationToken),
-                    EntryDate = @event.MovementDate,
+                    EntryDate = @event.MovementDate.ToUniversalTime(),
                     Description = $"Inventory Movement {@event.MovementNumber} - {@event.MovementType} - {@event.ProductName}",
                     Status = EntryStatus.Posted,
                     SourceSystem = "Inventory",
@@ -721,7 +725,7 @@ public class EventProcessingService : IEventProcessingService
                     SourceSystem = "Inventory",
                     TransactionType = "InventoryMovement",
                     SourceTransactionId = @event.MovementId.ToString(),
-                    TransactionDate = @event.MovementDate,
+                    TransactionDate = @event.MovementDate.ToUniversalTime(),
                     Amount = @event.TotalCost,
                     SupplierId = @event.SupplierId
                 };
@@ -749,8 +753,10 @@ public class EventProcessingService : IEventProcessingService
                     null,
                     cancellationToken);
 
-                await _idempotencyService.MarkEventAsProcessedAsync(@event.EventId.ToString(), journalEntry.Id, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
+
+                // Mark event as processed in Redis only after successful DB commit
+                await _idempotencyService.MarkEventAsProcessedAsync(@event.EventId.ToString(), journalEntry.Id, cancellationToken);
 
                 // Publish TransactionPostedEvent after commit
                 await _publishEndpoint.Publish(new TransactionPostedEvent
@@ -814,7 +820,7 @@ public class EventProcessingService : IEventProcessingService
                     Id = Guid.NewGuid(),
                     PeriodId = period.Id,
                     EntryNumber = await _periodService.GenerateEntryNumberAsync(period.Id, cancellationToken),
-                    EntryDate = @event.PaymentDate,
+                    EntryDate = @event.PaymentDate.ToUniversalTime(),
                     Description = $"Payroll {@event.PayrollNumber} - Period {@event.PayPeriodStart:yyyy-MM-dd} to {@event.PayPeriodEnd:yyyy-MM-dd}",
                     Status = EntryStatus.Posted,
                     SourceSystem = "Payroll",
@@ -900,7 +906,7 @@ public class EventProcessingService : IEventProcessingService
                     SourceSystem = "Payroll",
                     TransactionType = "Payroll",
                     SourceTransactionId = @event.PayrollId.ToString(),
-                    TransactionDate = @event.PaymentDate,
+                    TransactionDate = @event.PaymentDate.ToUniversalTime(),
                     Amount = @event.GrossPay
                 };
 
@@ -927,8 +933,10 @@ public class EventProcessingService : IEventProcessingService
                     null,
                     cancellationToken);
 
-                await _idempotencyService.MarkEventAsProcessedAsync(@event.EventId.ToString(), journalEntry.Id, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
+
+                // Mark event as processed in Redis only after successful DB commit
+                await _idempotencyService.MarkEventAsProcessedAsync(@event.EventId.ToString(), journalEntry.Id, cancellationToken);
 
                 // Publish TransactionPostedEvent after commit
                 await _publishEndpoint.Publish(new TransactionPostedEvent
@@ -960,7 +968,7 @@ public class EventProcessingService : IEventProcessingService
     {
         return await _memoryCache.GetOrCreateAsync($"account_{accountCode}", async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1);
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
             return await _context.ChartOfAccounts
                 .FirstOrDefaultAsync(a => a.AccountNumber == accountCode && a.IsActive, cancellationToken);
         }) ?? throw new InvalidOperationException($"Account with code {accountCode} not found or is inactive");

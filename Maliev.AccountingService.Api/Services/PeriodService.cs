@@ -37,35 +37,45 @@ public class PeriodService : IPeriodService
         var month = transactionDate.Month;
         var periodName = $"{year}-{month:D2}";
 
-        // Try to get without transaction first (fast path)
+        // Fast path: Try to get without transaction first
         var period = await _context.FinancialPeriods
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Name == periodName, cancellationToken);
 
         if (period != null) return period;
 
-        // If not found, we need to create it. Handle transactions carefully.
+        // If we are already in a transaction, don't use execution strategy and don't start new transaction
         if (_context.Database.CurrentTransaction != null)
         {
             return await GetOrCreatePeriodInternalAsync(transactionDate, cancellationToken);
         }
 
+        // If not found, we need to create it. Handle creation with a retry strategy
+        // but avoid global Serializable locks for standard lookups.
         var strategy = _context.Database.CreateExecutionStrategy();
 
         return await strategy.ExecuteAsync(async () =>
         {
-            // Double check inside strategy before starting transaction
+            // Re-check if it was created by another process before starting transaction
             var p = await _context.FinancialPeriods
                 .FirstOrDefaultAsync(px => px.Name == periodName, cancellationToken);
             if (p != null) return p;
 
-            using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+            using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
 
             try
             {
                 var result = await GetOrCreatePeriodInternalAsync(transactionDate, cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
                 return result;
+            }
+            catch (DbUpdateException) // Handle potential race condition on unique index
+            {
+                await transaction.RollbackAsync(cancellationToken);
+
+                // Final re-check
+                return await _context.FinancialPeriods
+                    .FirstAsync(px => px.Name == periodName, cancellationToken);
             }
             catch (Exception)
             {
@@ -158,10 +168,18 @@ public class PeriodService : IPeriodService
             throw new InvalidOperationException($"Period {periodId} not found");
         }
 
-        var count = await _context.JournalEntries
-            .CountAsync(j => j.PeriodId == periodId, cancellationToken);
+        // Use database sequence for thread-safe sequential numbering
+        var command = _context.Database.GetDbConnection().CreateCommand();
+        command.CommandText = "SELECT nextval('journal_entry_number_seq')";
 
-        return $"JE-{period.Name}-{(count + 1):D5}";
+        if (command.Connection!.State != ConnectionState.Open)
+        {
+            await command.Connection.OpenAsync(cancellationToken);
+        }
+
+        var sequenceValue = (long)(await command.ExecuteScalarAsync(cancellationToken) ?? 1L);
+
+        return $"JE-{period.Name}-{sequenceValue:D5}";
     }
 
     /// <inheritdoc />
