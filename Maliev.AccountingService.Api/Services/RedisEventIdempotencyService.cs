@@ -1,5 +1,4 @@
 using Maliev.Aspire.ServiceDefaults.Caching;
-using System.Text.Json;
 
 namespace Maliev.AccountingService.Api.Services;
 
@@ -88,7 +87,7 @@ public class RedisEventIdempotencyService : IEventIdempotencyService
 
     private static string GetKey(string eventId) => $"{KeyPrefix}{eventId}";
 
-    private class ProcessedEventData
+    internal class ProcessedEventData
     {
         public string EventId { get; set; } = string.Empty;
         public Guid JournalEntryId { get; set; }

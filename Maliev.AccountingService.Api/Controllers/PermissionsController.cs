@@ -1,8 +1,7 @@
-using Microsoft.AspNetCore.Mvc;
 using Asp.Versioning;
-using Microsoft.EntityFrameworkCore;
 using Maliev.AccountingService.Data.Data;
-using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Maliev.AccountingService.Api.Controllers;
 

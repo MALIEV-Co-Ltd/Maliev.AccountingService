@@ -1,8 +1,6 @@
 using Maliev.AccountingService.Api.Services;
 using Maliev.AccountingService.Data.Data;
 using Maliev.Aspire.ServiceDefaults;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.Extensions.Logging;
 
 // Initialize bootstrap logging
 using var loggerFactory = LoggerFactory.Create(logBuilder => logBuilder.AddConsole());

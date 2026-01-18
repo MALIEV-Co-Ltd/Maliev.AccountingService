@@ -468,4 +468,94 @@ public class EventProcessingTests : BaseIntegrationTest
         Assert.NotNull(processedEvent);
         Assert.Equal(journalEntries[0].Id, processedEvent.JournalEntryId);
     }
+
+    [Fact]
+    public async Task EventsWithLineItems_ShouldCoverLineItemClasses()
+    {
+        await CleanDatabaseAsync();
+
+        // Arrange
+        var dbContext = Factory.GetDbContext();
+        await TestDataSeeder.SeedChartOfAccountsAsync(dbContext);
+
+        var invoiceEvent = new InvoiceCreatedEvent
+        {
+            EventId = Guid.NewGuid().ToString(),
+            InvoiceId = Guid.NewGuid(),
+            InvoiceNumber = "INV-LINES-001",
+            InvoiceDate = DateTime.UtcNow,
+            CustomerId = Guid.NewGuid(),
+            SubtotalAmount = 100m,
+            TaxAmount = 10m,
+            TotalAmount = 110m,
+            LineItems = new List<InvoiceLineItem>
+            {
+                new() { ProductId = Guid.NewGuid(), Description = "Product 1", Quantity = 1, UnitPrice = 100m, Amount = 100m }
+            }
+        };
+
+        // Act
+        await Factory.PublishEventAsync(invoiceEvent);
+        await Task.Delay(3000);
+
+        // Assert
+        var dbContext2 = Factory.GetDbContext();
+        var entry1 = await dbContext2.JournalEntries.AnyAsync(e => e.SourceEventId == invoiceEvent.EventId);
+        Assert.True(entry1, $"Invoice event failed: {invoiceEvent.EventId}");
+
+        var supplierEvent = new SupplierInvoiceEvent
+        {
+            EventId = Guid.NewGuid().ToString(),
+            InvoiceId = Guid.NewGuid(),
+            InvoiceNumber = "SUPP-LINES-001",
+            InvoiceDate = DateTime.UtcNow,
+            SupplierId = Guid.NewGuid(),
+            SubtotalAmount = 200m,
+            TaxAmount = 20m,
+            TotalAmount = 220m,
+            LineItems = new List<SupplierInvoiceLineItem>
+            {
+                new() { Description = "Service 1", Amount = 200m, ExpenseCategory = "Consulting" }
+            }
+        };
+
+        await Factory.PublishEventAsync(supplierEvent);
+        await Task.Delay(3000);
+
+        var dbContext3 = Factory.GetDbContext();
+        var entry2 = await dbContext3.JournalEntries.AnyAsync(e => e.SourceEventId == supplierEvent.EventId);
+        Assert.True(entry2, $"Supplier event failed: {supplierEvent.EventId}");
+    }
+
+    [Fact]
+    public async Task InvoiceCreatedEvent_WithNoTax_ShouldCreateBalancedEntry()
+    {
+        await CleanDatabaseAsync();
+
+        // Arrange
+        var dbContext = Factory.GetDbContext();
+        await TestDataSeeder.SeedChartOfAccountsAsync(dbContext);
+
+        var invoiceEvent = new InvoiceCreatedEvent
+        {
+            EventId = Guid.NewGuid().ToString(),
+            InvoiceId = Guid.NewGuid(),
+            InvoiceNumber = "INV-NOTAX-001",
+            InvoiceDate = DateTime.UtcNow,
+            CustomerId = Guid.NewGuid(),
+            SubtotalAmount = 500m,
+            TaxAmount = 0m,
+            TotalAmount = 500m
+        };
+
+        // Act
+        await Factory.PublishEventAsync(invoiceEvent);
+        await Task.Delay(3000);
+
+        // Assert
+        var dbContext2 = Factory.GetDbContext();
+        var entry = await dbContext2.JournalEntries.Include(e => e.Lines).FirstOrDefaultAsync(e => e.SourceEventId == invoiceEvent.EventId);
+        Assert.NotNull(entry);
+        Assert.Equal(2, entry.Lines.Count); // AR and Revenue
+    }
 }

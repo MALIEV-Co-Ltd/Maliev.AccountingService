@@ -1,10 +1,9 @@
-using CsvHelper;
-using CsvHelper.Configuration;
 using Maliev.AccountingService.Api.Models;
 using Maliev.AccountingService.Data.Data;
 using Maliev.AccountingService.Data.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.VisualBasic.FileIO;
 using System.Globalization;
 using System.Text.Json;
 
@@ -262,34 +261,52 @@ public class BulkImportService : IBulkImportService
 
     private List<ChartOfAccount> ReadAccountsFromCsv(Stream stream)
     {
-        var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+        var records = new List<ChartOfAccount>();
+        using var parser = new TextFieldParser(stream);
+        parser.TextFieldType = FieldType.Delimited;
+        parser.SetDelimiters(",");
+        parser.HasFieldsEnclosedInQuotes = true;
+
+        if (parser.EndOfData) return new List<ChartOfAccount>();
+
+        var headers = parser.ReadFields();
+        if (headers == null) return new List<ChartOfAccount>();
+
+        var headerMap = headers.Select((h, i) => new { Name = h.Trim(), Index = i })
+                               .ToDictionary(h => h.Name, h => h.Index, StringComparer.OrdinalIgnoreCase);
+
+        while (!parser.EndOfData)
         {
-            // Enable validation to prevent silent data corruption
-            // HeaderValidated can remain null as CSV headers may vary
-            HeaderValidated = null,
-            // Throw exception if required field is missing
-            MissingFieldFound = args =>
+            var fields = parser.ReadFields();
+            if (fields == null) continue;
+
+            string GetField(string name, bool required = true)
             {
-                throw new InvalidDataException($"Missing required field '{string.Join(", ", args.HeaderNames ?? Array.Empty<string>())}' at index {args.Index} in CSV file");
+                if (headerMap.TryGetValue(name, out var index) && index < fields.Length)
+                {
+                    return fields[index];
+                }
+                if (required)
+                {
+                    throw new InvalidDataException($"Missing required field '{name}' in CSV file");
+                }
+                return string.Empty;
             }
-        };
 
-        using var reader = new StreamReader(stream);
-        using var csv = new CsvReader(reader, config);
+            records.Add(new ChartOfAccount
+            {
+                Id = Guid.NewGuid(),
+                AccountNumber = GetField(nameof(ChartOfAccountCsvRecord.AccountNumber)),
+                Name = GetField(nameof(ChartOfAccountCsvRecord.Name)),
+                Description = GetField(nameof(ChartOfAccountCsvRecord.Description), false),
+                Type = Enum.Parse<AccountType>(GetField(nameof(ChartOfAccountCsvRecord.Type)), true),
+                Category = GetField(nameof(ChartOfAccountCsvRecord.Category), false),
+                IsActive = bool.TryParse(GetField(nameof(ChartOfAccountCsvRecord.IsActive), false), out var isActive) ? isActive : true,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
 
-        var records = csv.GetRecords<ChartOfAccountCsvRecord>().ToList();
-
-        return records.Select(r => new ChartOfAccount
-        {
-            Id = Guid.NewGuid(),
-            AccountNumber = r.AccountNumber,
-            Name = r.Name,
-            Description = r.Description,
-            Type = Enum.Parse<AccountType>(r.Type, true),
-            Category = r.Category,
-            IsActive = r.IsActive ?? true,
-            CreatedAt = DateTime.UtcNow
-        }).ToList();
+        return records;
     }
 
     private List<ChartOfAccount> ReadAccountsFromJson(Stream stream)
@@ -315,21 +332,48 @@ public class BulkImportService : IBulkImportService
 
     private List<OpeningBalanceRecord> ReadBalancesFromCsv(Stream stream)
     {
-        var config = new CsvConfiguration(CultureInfo.InvariantCulture)
-        {
-            // Enable validation to prevent silent data corruption
-            // HeaderValidated can remain null as CSV headers may vary
-            HeaderValidated = null,
-            // Throw exception if required field is missing
-            MissingFieldFound = args =>
-            {
-                throw new InvalidDataException($"Missing required field '{string.Join(", ", args.HeaderNames ?? Array.Empty<string>())}' at index {args.Index} in CSV file");
-            }
-        };
+        var records = new List<OpeningBalanceRecord>();
+        using var parser = new TextFieldParser(stream);
+        parser.TextFieldType = FieldType.Delimited;
+        parser.SetDelimiters(",");
+        parser.HasFieldsEnclosedInQuotes = true;
 
-        using var reader = new StreamReader(stream);
-        using var csv = new CsvReader(reader, config);
-        return csv.GetRecords<OpeningBalanceRecord>().ToList();
+        if (parser.EndOfData) return new List<OpeningBalanceRecord>();
+
+        var headers = parser.ReadFields();
+        if (headers == null) return new List<OpeningBalanceRecord>();
+
+        var headerMap = headers.Select((h, i) => new { Name = h.Trim(), Index = i })
+                               .ToDictionary(h => h.Name, h => h.Index, StringComparer.OrdinalIgnoreCase);
+
+        while (!parser.EndOfData)
+        {
+            var fields = parser.ReadFields();
+            if (fields == null) continue;
+
+            string GetField(string name, bool required = true)
+            {
+                if (headerMap.TryGetValue(name, out var index) && index < fields.Length)
+                {
+                    return fields[index];
+                }
+                if (required)
+                {
+                    throw new InvalidDataException($"Missing required field '{name}' in CSV file");
+                }
+                return string.Empty;
+            }
+
+            records.Add(new OpeningBalanceRecord
+            {
+                AccountNumber = GetField(nameof(OpeningBalanceRecord.AccountNumber)),
+                DebitAmount = decimal.TryParse(GetField(nameof(OpeningBalanceRecord.DebitAmount)), NumberStyles.Any, CultureInfo.InvariantCulture, out var debit) ? debit : 0,
+                CreditAmount = decimal.TryParse(GetField(nameof(OpeningBalanceRecord.CreditAmount)), NumberStyles.Any, CultureInfo.InvariantCulture, out var credit) ? credit : 0,
+                Description = GetField(nameof(OpeningBalanceRecord.Description), false)
+            });
+        }
+
+        return records;
     }
 
     private List<OpeningBalanceRecord> ReadBalancesFromJson(Stream stream)

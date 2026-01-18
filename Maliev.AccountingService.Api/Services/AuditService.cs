@@ -1,7 +1,7 @@
-using Microsoft.EntityFrameworkCore;
-using System.Text.Json;
 using Maliev.AccountingService.Data.Data;
 using Maliev.AccountingService.Data.Models;
+using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace Maliev.AccountingService.Api.Services;
 

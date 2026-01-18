@@ -2,11 +2,11 @@ using Maliev.AccountingService.Api.Events;
 using Maliev.AccountingService.Api.Metrics;
 using Maliev.AccountingService.Data.Data;
 using Maliev.AccountingService.Data.Models;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using System.Data;
 using System.Diagnostics;
-using Microsoft.Extensions.Caching.Memory;
-using MassTransit;
 
 namespace Maliev.AccountingService.Api.Services;
 
@@ -84,7 +84,17 @@ public class EventProcessingService : IEventProcessingService
         // Record event ingestion
         _metrics.RecordEventIngestion("InvoiceCreated", "Sales");
 
+        if (@event.LineItems?.Any() == true)
+        {
+            _logger.LogDebug("Processing invoice with {LineCount} items", @event.LineItems.Count);
+            foreach (var item in @event.LineItems)
+            {
+                _logger.LogTrace("Line item: {Description}, Amount: {Amount}", item.Description, item.Amount);
+            }
+        }
+
         // Check idempotency
+
         // Check idempotency
         if (await _idempotencyService.IsEventProcessedAsync(@event.EventId.ToString(), cancellationToken))
         {
@@ -453,7 +463,17 @@ public class EventProcessingService : IEventProcessingService
         using var activity = Activity.Current?.Source.StartActivity("ProcessSupplierInvoice");
         activity?.SetTag("event.id", @event.EventId);
 
+        if (@event.LineItems?.Any() == true)
+        {
+            _logger.LogDebug("Processing supplier invoice with {LineCount} items", @event.LineItems.Count);
+            foreach (var item in @event.LineItems)
+            {
+                _logger.LogTrace("Supplier line item: {Description}, Amount: {Amount}", item.Description, item.Amount);
+            }
+        }
+
         if (await _idempotencyService.IsEventProcessedAsync(@event.EventId.ToString(), cancellationToken))
+
         {
             var existingId = await _idempotencyService.GetJournalEntryIdAsync(@event.EventId.ToString(), cancellationToken);
             return existingId ?? throw new InvalidOperationException("Event was processed but journal entry ID not found");

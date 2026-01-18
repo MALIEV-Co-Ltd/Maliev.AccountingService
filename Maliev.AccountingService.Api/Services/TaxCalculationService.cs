@@ -19,6 +19,6 @@ public class TaxCalculationService : ITaxCalculationService
     /// <inheritdoc />
     public decimal CalculateVat(decimal subtotal, decimal rate)
     {
-        return Math.Round(subtotal * rate / 100m, 2);
+        return Math.Round(subtotal * rate / 100m, 2, MidpointRounding.AwayFromZero);
     }
 }

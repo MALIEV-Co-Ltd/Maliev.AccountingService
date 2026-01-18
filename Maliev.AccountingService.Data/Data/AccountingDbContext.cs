@@ -1,6 +1,6 @@
-using Microsoft.EntityFrameworkCore;
 using Maliev.AccountingService.Data.Models;
 using Maliev.Aspire.ServiceDefaults.Database;
+using Microsoft.EntityFrameworkCore;
 
 namespace Maliev.AccountingService.Data.Data;
 

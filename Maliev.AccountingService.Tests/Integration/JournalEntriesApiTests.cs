@@ -333,17 +333,55 @@ public class JournalEntriesApiTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task PostJournalEntry_Validation_Works()
+    public async Task PostJournalEntry_ShouldSucceed_WhenDraft()
     {
         await CleanDatabaseAsync();
 
-        // Arrange - Try to post with a non-existent ID
-        var nonExistentId = Guid.NewGuid();
+        // Arrange
+        var dbContext = Factory.GetDbContext();
+        await TestDataSeeder.SeedChartOfAccountsAsync(dbContext);
+        var accounts = await dbContext.ChartOfAccounts.Where(a => a.IsActive).Take(2).ToListAsync();
+
+        var fiscalYearId = Guid.NewGuid();
+        dbContext.FiscalYears.Add(new FiscalYear { Id = fiscalYearId, Name = "FY2026", StartDate = DateTime.UtcNow.AddDays(-365), EndDate = DateTime.UtcNow.AddDays(365), PeriodStructure = PeriodStructure.Monthly });
+
+        var period = new FinancialPeriod { Id = Guid.NewGuid(), FiscalYearId = fiscalYearId, Name = "2026-01", StartDate = DateTime.UtcNow.AddDays(-10), EndDate = DateTime.UtcNow.AddDays(10), Status = PeriodStatus.Open };
+        dbContext.FinancialPeriods.Add(period);
+
+        var entry = new JournalEntry
+        {
+            Id = Guid.NewGuid(),
+            PeriodId = period.Id,
+            EntryNumber = "JE-001",
+            EntryDate = DateTime.UtcNow,
+            Status = EntryStatus.Draft,
+            TotalDebit = 100m,
+            TotalCredit = 100m
+        };
+        dbContext.JournalEntries.Add(entry);
+        dbContext.JournalEntryLines.Add(new JournalEntryLine { Id = Guid.NewGuid(), JournalEntryId = entry.Id, AccountId = accounts[0].Id, DebitAmount = 100m, CreditAmount = 0m, LineSequence = 1 });
+        dbContext.JournalEntryLines.Add(new JournalEntryLine { Id = Guid.NewGuid(), JournalEntryId = entry.Id, AccountId = accounts[1].Id, DebitAmount = 0m, CreditAmount = 100m, LineSequence = 2 });
+        await dbContext.SaveChangesAsync();
 
         // Act
-        var response = await Client.PostAsync($"/accounting/v1/journal-entries/{nonExistentId}/post", null);
+        var response = await Client.PostAsync($"/accounting/v1/journal-entries/{entry.Id}/post", null);
 
-        // Assert - Should fail (not found, unauthorized, or forbidden)
-        Assert.False(response.IsSuccessStatusCode);
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var updatedEntry = await Factory.GetDbContext().JournalEntries.FindAsync(entry.Id);
+        Assert.Equal(EntryStatus.Posted, updatedEntry!.Status);
+    }
+
+    [Fact]
+    public async Task GetJournalEntries_WithSupplierFilter_ShouldWork()
+    {
+        await CleanDatabaseAsync();
+
+        // Act
+        var supplierId = Guid.NewGuid();
+        var response = await Client.GetAsync($"/accounting/v1/journal-entries?supplierId={supplierId}");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 }
