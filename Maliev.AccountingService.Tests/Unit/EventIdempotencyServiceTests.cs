@@ -129,12 +129,12 @@ public class EventIdempotencyServiceTests
         // However, Moq can mock generic methods.
 
         // Reflection approach or making ProcessedEventData internal/public would be easier.
-        // Assuming ProcessedEventData is private, we rely on Moq's loose behavior returning null for nullable types, 
+        // Assuming ProcessedEventData is private, we rely on Moq's loose behavior returning null for nullable types,
         // or we need to match the method call.
 
         // Actually, since ProcessedEventData is private inside RedisEventIdempotencyService, we can't use it in tests easily.
-        // This is a design issue for testing. 
-        // However, we can mock the method using It.IsAnyType if we use a specific Moq setup, 
+        // This is a design issue for testing.
+        // However, we can mock the method using It.IsAnyType if we use a specific Moq setup,
         // or better, if the service class exposed the data type.
 
         // For now, let's assume we can match the call by checking if it returns null by default (Loose mock).
@@ -150,6 +150,71 @@ public class EventIdempotencyServiceTests
         Assert.False(result);
     }
 
-    // Skipped other tests that require accessing private ProcessedEventData type or complex generic mocking
-    // Ideally ProcessedEventData should be internal or public to be testable.
+    [Fact]
+    public async Task Redis_MarkEventAsProcessed_ShouldSetCache()
+    {
+        // Arrange
+        var mockCache = new Mock<ICacheService>();
+        var mockLogger = new Mock<ILogger<RedisEventIdempotencyService>>();
+        var service = new RedisEventIdempotencyService(mockCache.Object, mockLogger.Object);
+        var eventId = "test-event";
+        var journalEntryId = Guid.NewGuid();
+
+        // Act
+        await service.MarkEventAsProcessedAsync(eventId, journalEntryId);
+
+        // Assert
+        mockCache.Verify(c => c.SetAsync(
+            It.Is<string>(s => s.Contains(eventId)),
+            It.Is<RedisEventIdempotencyService.ProcessedEventData>(d => d.EventId == eventId && d.JournalEntryId == journalEntryId),
+            It.IsAny<TimeSpan>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Redis_IsEventProcessed_ShouldReturnTrue_WhenCacheHasData()
+    {
+        // Arrange
+        var mockCache = new Mock<ICacheService>();
+        var mockLogger = new Mock<ILogger<RedisEventIdempotencyService>>();
+        var eventId = "test-event";
+        var data = new RedisEventIdempotencyService.ProcessedEventData { EventId = eventId, JournalEntryId = Guid.NewGuid() };
+
+        mockCache.Setup(c => c.GetAsync<RedisEventIdempotencyService.ProcessedEventData>(
+            It.Is<string>(s => s.Contains(eventId)),
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(data);
+
+        var service = new RedisEventIdempotencyService(mockCache.Object, mockLogger.Object);
+
+        // Act
+        var result = await service.IsEventProcessedAsync(eventId);
+
+        // Assert
+        Assert.True(result);
+    }
+
+    [Fact]
+    public async Task Redis_GetJournalEntryId_ShouldReturnId_WhenCacheHasData()
+    {
+        // Arrange
+        var mockCache = new Mock<ICacheService>();
+        var mockLogger = new Mock<ILogger<RedisEventIdempotencyService>>();
+        var eventId = "test-event";
+        var journalEntryId = Guid.NewGuid();
+        var data = new RedisEventIdempotencyService.ProcessedEventData { EventId = eventId, JournalEntryId = journalEntryId };
+
+        mockCache.Setup(c => c.GetAsync<RedisEventIdempotencyService.ProcessedEventData>(
+            It.Is<string>(s => s.Contains(eventId)),
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(data);
+
+        var service = new RedisEventIdempotencyService(mockCache.Object, mockLogger.Object);
+
+        // Act
+        var result = await service.GetJournalEntryIdAsync(eventId);
+
+        // Assert
+        Assert.Equal(journalEntryId, result);
+    }
 }

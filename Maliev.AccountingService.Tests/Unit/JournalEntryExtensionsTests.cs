@@ -355,4 +355,42 @@ public class JournalEntryExtensionsTests
         Assert.NotNull(response);
         Assert.Null(response.SourceEventId);
     }
+
+    [Fact]
+    public void ToResponse_ShouldMapAuditTrailEntryCorrectly()
+    {
+        // Arrange
+        var entryId = Guid.NewGuid();
+        var entityId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var corrId = Guid.NewGuid();
+        var entry = new AuditTrailEntry
+        {
+            Id = entryId,
+            EntityType = "JournalEntry",
+            EntityId = entityId.ToString(),
+            Action = "Created",
+            PerformedBy = userId,
+            PerformedAt = DateTime.UtcNow,
+            CorrelationId = corrId.ToString(),
+            IpAddress = "127.0.0.1",
+            BeforeSnapshot = "old",
+            AfterSnapshot = "new"
+        };
+
+        // Act
+        var response = entry.ToResponse();
+
+        // Assert
+        Assert.NotNull(response);
+        Assert.Equal(entryId, response.Id);
+        Assert.Equal("JournalEntry", response.EntityType);
+        Assert.Equal(entityId, response.EntityId);
+        Assert.Equal("Created", response.Operation);
+        Assert.Equal(userId, response.PerformedBy);
+        Assert.Equal(corrId, response.CorrelationId);
+        Assert.Equal("127.0.0.1", response.IpAddress);
+        Assert.Equal("old", response.BeforeValue);
+        Assert.Equal("new", response.AfterValue);
+    }
 }

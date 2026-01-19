@@ -2,7 +2,6 @@ using Maliev.AccountingService.Api.Events;
 using Maliev.AccountingService.Api.Services;
 using MassTransit;
 using System.Diagnostics;
-using System.IO;
 
 namespace Maliev.AccountingService.Api.Consumers;
 

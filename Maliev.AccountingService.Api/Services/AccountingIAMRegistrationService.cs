@@ -1,7 +1,5 @@
-using Maliev.Aspire.ServiceDefaults.IAM;
 using Maliev.AccountingService.Data.Data;
-using System.Collections.Generic;
-using System.Linq;
+using Maliev.Aspire.ServiceDefaults.IAM;
 
 namespace Maliev.AccountingService.Api.Services;
 

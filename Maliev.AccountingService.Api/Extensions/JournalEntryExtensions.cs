@@ -72,8 +72,29 @@ public static class JournalEntryExtensions
     }
 
     /// <summary>
+    /// Maps an AuditTrailEntry entity to an AuditTrailEntryResponse DTO
+    /// </summary>
+    public static AuditTrailEntryResponse ToResponse(this AuditTrailEntry entry)
+    {
+        return new AuditTrailEntryResponse
+        {
+            Id = entry.Id,
+            EntityType = entry.EntityType,
+            EntityId = Guid.TryParse(entry.EntityId, out var entityGuid) ? entityGuid : Guid.Empty,
+            Operation = entry.Action,
+            PerformedBy = entry.PerformedBy,
+            PerformedAt = entry.PerformedAt,
+            CorrelationId = Guid.TryParse(entry.CorrelationId, out var corrGuid) ? corrGuid : null,
+            IpAddress = entry.IpAddress,
+            BeforeValue = entry.BeforeSnapshot,
+            AfterValue = entry.AfterSnapshot
+        };
+    }
+
+    /// <summary>
     /// Maps a CreateJournalEntryRequest DTO to a JournalEntry entity
     /// </summary>
+
     public static JournalEntry ToEntity(this CreateJournalEntryRequest request, Guid periodId, Guid createdBy)
     {
         var journalEntry = new JournalEntry
