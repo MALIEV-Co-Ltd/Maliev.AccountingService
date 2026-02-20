@@ -23,11 +23,13 @@ try
     });
     builder.AddServiceMeters("accounting-meter"); // Register service meters for OpenTelemetry business metrics
 
+    builder.Services.AddHttpContextAccessor();
+
     // Database Context with ServiceDefaults
     builder.AddPostgresDbContext<AccountingDbContext>(
         connectionName: "AccountingDbContext");
 
-    builder.AddRedisDistributedCache(instanceName: "accounting:"); // Redis with in-memory fallback
+    builder.AddStandardCache("accounting:"); // Redis + in-memory fallback, memory-optimized // Redis with in-memory fallback
     builder.AddMassTransitWithRabbitMq(x =>
     {
         // Register all event consumers
@@ -39,7 +41,7 @@ try
     }); // RabbitMQ message bus (non-blocking startup)
 
     // --- API Configuration ---
-    builder.AddDefaultCors(); // CORS from CORS:AllowedOrigins config
+    builder.AddStandardCors(); // CORS with fail-fast validation
     builder.AddDefaultApiVersioning(); // API versioning with URL segment reader
 
     // JWT Authentication (tests override via PostConfigureAll with dynamic RSA keys)

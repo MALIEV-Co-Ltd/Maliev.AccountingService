@@ -39,9 +39,9 @@ public class ReportingService : IReportingService
         else
         {
             if (startDate.HasValue)
-                query = query.Where(l => l.JournalEntry.EntryDate >= startDate.Value.ToUniversalTime());
+                query = query.Where(l => l.JournalEntry.EntryDate >= DateTime.SpecifyKind(startDate.Value.Date, DateTimeKind.Utc));
             if (endDate.HasValue)
-                query = query.Where(l => l.JournalEntry.EntryDate <= endDate.Value.ToUniversalTime());
+                query = query.Where(l => l.JournalEntry.EntryDate < DateTime.SpecifyKind(endDate.Value.Date.AddDays(1), DateTimeKind.Utc));
         }
 
         var accountBalances = await query
@@ -137,13 +137,13 @@ public class ReportingService : IReportingService
     {
         _logger.LogInformation("Generating Income Statement from {StartDate} to {EndDate}", startDate, endDate);
 
-        var utcStart = startDate.ToUniversalTime();
-        var utcEnd = endDate.ToUniversalTime();
+        var utcStart = DateTime.SpecifyKind(startDate.Date, DateTimeKind.Utc);
+        var utcEnd = DateTime.SpecifyKind(endDate.Date.AddDays(1), DateTimeKind.Utc);
 
         var movements = await _context.JournalEntryLines
             .Where(l => l.JournalEntry.Status == EntryStatus.Posted
                 && l.JournalEntry.EntryDate >= utcStart
-                && l.JournalEntry.EntryDate <= utcEnd)
+                && l.JournalEntry.EntryDate < utcEnd)
             .Where(l => l.Account.Type == AccountType.Revenue || l.Account.Type == AccountType.Expense)
             .GroupBy(l => new { l.Account.AccountNumber, l.Account.Name, l.Account.Type, l.Account.Category })
             .Select(g => new

@@ -989,6 +989,7 @@ public class EventProcessingService : IEventProcessingService
         return await _memoryCache.GetOrCreateAsync($"account_{accountCode}", async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.Size = 1;
             return await _context.ChartOfAccounts
                 .FirstOrDefaultAsync(a => a.AccountNumber == accountCode && a.IsActive, cancellationToken);
         }) ?? throw new InvalidOperationException($"Account with code {accountCode} not found or is inactive");

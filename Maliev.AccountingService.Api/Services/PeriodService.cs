@@ -2,6 +2,7 @@ using Maliev.AccountingService.Data.Data;
 using Maliev.AccountingService.Data.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
+using System.Security.Claims;
 
 namespace Maliev.AccountingService.Api.Services;
 
@@ -12,6 +13,7 @@ public class PeriodService : IPeriodService
 {
     private readonly AccountingDbContext _context;
     private readonly IAuditService _auditService;
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<PeriodService> _logger;
 
     /// <summary>
@@ -19,14 +21,17 @@ public class PeriodService : IPeriodService
     /// </summary>
     /// <param name="context">The accounting database context.</param>
     /// <param name="auditService">The audit service.</param>
+    /// <param name="httpContextAccessor">The HTTP context accessor.</param>
     /// <param name="logger">The logger.</param>
     public PeriodService(
         AccountingDbContext context,
         IAuditService auditService,
+        IHttpContextAccessor httpContextAccessor,
         ILogger<PeriodService> logger)
     {
         _context = context;
         _auditService = auditService;
+        _httpContextAccessor = httpContextAccessor;
         _logger = logger;
     }
 
@@ -224,10 +229,13 @@ public class PeriodService : IPeriodService
             throw new InvalidOperationException($"Cannot close period {period.Name} because total debits ({balances.TotalDebit}) do not equal total credits ({balances.TotalCredit}).");
         }
 
+        var userIdClaim = _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userId = userIdClaim != null ? Guid.Parse(userIdClaim) : Guid.Empty;
+
         var beforeState = period.Status;
         period.Status = PeriodStatus.Closed;
         period.ClosedAt = DateTime.UtcNow;
-        period.ClosedBy = Guid.Empty; // TODO: Get from context
+        period.ClosedBy = userId;
 
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -237,7 +245,7 @@ public class PeriodService : IPeriodService
             "Closed",
             beforeState,
             period.Status,
-            "system",
+            userId.ToString(),
             null,
             null,
             cancellationToken);

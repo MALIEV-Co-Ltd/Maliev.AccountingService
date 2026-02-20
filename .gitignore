@@ -12,6 +12,12 @@ bld/
 [Ll]og/
 [Ll]ogs/
 
+<<<<<<< Updated upstream
+=======
+<<<<<<< Updated upstream
+# .NET Core
+=======
+>>>>>>> Stashed changes
 # IDE files
 .vs/
 .vscode/
@@ -27,10 +33,51 @@ bld/
 *.snupkg
 packages/
 .nuget/
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
 project.lock.json
 project.fragment.lock.json
 artifacts/
 
+<<<<<<< Updated upstream
+# Environment & Secrets
+*.env
+*.env.*
+secrets/
+appsettings.Local.json
+appsettings.Testing.json
+
+# OS files
+.DS_Store
+Thumbs.db
+NUL
+
+# Temporary & Logs
+*.log
+*.bak
+*.sql
+build_errors.txt
+=======
+<<<<<<< Updated upstream
+# ASP.NET Scaffolding
+>>>>>>> Stashed changes
+ScaffoldingReadMe.txt
+
+# Test Artifacts
+TestResults/
+[Tt]est[Rr]esult*/
+*.trx
+*.coverage
+*.coveragexml
+coverage/
+*.VisualState.xml
+TestResult.xml
+nunit-*.xml
+<<<<<<< Updated upstream
+=======
+=======
 # Environment & Secrets
 *.env
 *.env.*
@@ -60,6 +107,7 @@ coverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+>>>>>>> Stashed changes
 
 # Repository Specific
 .claude/settings.local.json
@@ -73,3 +121,7 @@ nunit-*.xml
 appsettings.Development.json
 docker-compose*.yml
 docker-compose.override.yml
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes

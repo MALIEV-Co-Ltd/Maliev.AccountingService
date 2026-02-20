@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Diagnostics.CodeAnalysis;
 using MassTransit;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Net.Http.Headers;
@@ -13,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
+using Moq;
 using Testcontainers.PostgreSql;
 using Testcontainers.RabbitMq;
 using Testcontainers.Redis;
@@ -62,13 +64,16 @@ public class BaseIntegrationTestFactory<TProgram, TDbContext> : WebApplicationFa
         {
             if (!_containersStarted)
             {
-                _postgresContainer = new PostgreSqlBuilder().WithImage("postgres:18-alpine")
+                _postgresContainer = new PostgreSqlBuilder()
+                    .WithImage("postgres:18-alpine")
                     .Build();
 
-                _redisContainer = new RedisBuilder().WithImage("redis:8.4-alpine")
+                _redisContainer = new RedisBuilder()
+                    .WithImage("redis:7.4-alpine")
                     .Build();
 
-                _rabbitmqContainer = new RabbitMqBuilder().WithImage("rabbitmq:4.2-alpine")
+                _rabbitmqContainer = new RabbitMqBuilder()
+                    .WithImage("rabbitmq:4.0-alpine")
                     .Build();
 
                 // Start all containers in parallel
@@ -126,6 +131,9 @@ public class BaseIntegrationTestFactory<TProgram, TDbContext> : WebApplicationFa
         Environment.SetEnvironmentVariable($"ConnectionStrings__{DbConnectionStringName}", _postgresContainer!.GetConnectionString());
         Environment.SetEnvironmentVariable("ConnectionStrings__redis", _redisContainer!.GetConnectionString());
         Environment.SetEnvironmentVariable("ConnectionStrings__rabbitmq", _rabbitmqContainer!.GetConnectionString());
+        Environment.SetEnvironmentVariable("CORS_ALLOWED_ORIGINS", "http://localhost:3000");
+        Environment.SetEnvironmentVariable("CORS__AllowedOrigins__0", "http://localhost:3000");
+        Environment.SetEnvironmentVariable("IAM__RegistrationDelaySeconds", "0");
     }
 
     public new async Task DisposeAsync()
@@ -136,6 +144,9 @@ public class BaseIntegrationTestFactory<TProgram, TDbContext> : WebApplicationFa
         // Static containers are NOT disposed here to allow reuse across tests
         _testRsa.Dispose();
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", null); // Cleanup
+        Environment.SetEnvironmentVariable("CORS_ALLOWED_ORIGINS", null);
+        Environment.SetEnvironmentVariable("CORS__AllowedOrigins__0", null);
+        Environment.SetEnvironmentVariable("IAM__RegistrationDelaySeconds", null);
     }
 
 
@@ -151,6 +162,10 @@ public class BaseIntegrationTestFactory<TProgram, TDbContext> : WebApplicationFa
         var rsaParams = _testRsa.ExportParameters(false);
         Environment.SetEnvironmentVariable("JWT_PUBLIC_KEY_MODULUS", Convert.ToBase64String(rsaParams.Modulus!));
         Environment.SetEnvironmentVariable("JWT_PUBLIC_KEY_EXPONENT", Convert.ToBase64String(rsaParams.Exponent!));
+
+        // Also set the format expected by some Aspire helpers (raw base64 of public key info)
+        var keyBytes = _testRsa.ExportSubjectPublicKeyInfo();
+        Environment.SetEnvironmentVariable("Authentication__Jwt__PublicKey", Convert.ToBase64String(keyBytes));
 
         // Allow derived classes to set additional environment variables
         ConfigureEnvironmentVariables();
@@ -172,12 +187,35 @@ public class BaseIntegrationTestFactory<TProgram, TDbContext> : WebApplicationFa
                 ["Jwt:Audience"] = "test-audience",
                 [$"ConnectionStrings:{DbConnectionStringName}"] = _postgresContainer!.GetConnectionString(),
                 ["ConnectionStrings:redis"] = _redisContainer!.GetConnectionString(),
-                ["ConnectionStrings:rabbitmq"] = _rabbitmqContainer!.GetConnectionString()
+                ["ConnectionStrings:rabbitmq"] = _rabbitmqContainer!.GetConnectionString(),
+                ["CORS:AllowedOrigins:0"] = "http://localhost:3000",
+                ["CORS_ALLOWED_ORIGINS"] = "http://localhost:3000",
+                ["IAM:RegistrationDelaySeconds"] = "0"
             });
         });
 
         builder.ConfigureTestServices(services =>
         {
+            // Manual Redis registration for tests because AddStandardCache skips it in 'Testing' env
+            var redisConnectionString = _redisContainer!.GetConnectionString();
+            services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(sp =>
+            {
+                return StackExchange.Redis.ConnectionMultiplexer.Connect(redisConnectionString);
+            });
+
+            // Mock IAM service to fail fast and fallback to JWT claims
+            var iamMock = new Mock<Maliev.Aspire.ServiceDefaults.IAM.IIamServiceClient>();
+            iamMock.Setup(x => x.CheckPermissionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(false);
+            iamMock.Setup(x => x.GetUserPermissionsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Enumerable.Empty<string>());
+            services.AddSingleton(iamMock.Object);
+
+            // Mock IAM registration status to always be healthy
+            var statusTracker = new Maliev.Aspire.ServiceDefaults.IAM.IAMRegistrationStatusTracker();
+            statusTracker.MarkRegistered();
+            services.AddSingleton(statusTracker);
+
             // Configure JWT Bearer authentication with test RSA key
             services.PostConfigureAll<Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerOptions>(options =>
             {
@@ -191,16 +229,32 @@ public class BaseIntegrationTestFactory<TProgram, TDbContext> : WebApplicationFa
                     ValidIssuer = "test-issuer",
                     ValidAudience = "test-audience",
                     IssuerSigningKey = new RsaSecurityKey(_testRsa),
-                    ClockSkew = TimeSpan.Zero // No clock skew for tests
+                    ClockSkew = TimeSpan.Zero, // No clock skew for tests
+                    NameClaimType = "sub",
+                    RoleClaimType = "role"
                 };
+
+                // Clear SignatureValidator to ensure proper JWT validation and claim mapping
+                options.TokenValidationParameters.SignatureValidator = null;
             });
 
-            // Ensure MassTransit waits until started for tests to avoid race conditions
-            services.Configure<MassTransitHostOptions>(options =>
+            // Add MassTransit test harness for testing message publishing/consuming
+            services.AddMassTransitTestHarness();
+
+            // Disable background services that cause interference during tests
+            var backgroundServicesToDisable = new[]
             {
-                options.WaitUntilStarted = true;
-                options.StartTimeout = TimeSpan.FromSeconds(30);
-            });
+                "BackgroundIAMRegistrationService"
+            };
+
+            var descriptors = services.Where(d =>
+                d.ServiceType == typeof(IHostedService) &&
+                backgroundServicesToDisable.Contains(d.ImplementationType?.Name)).ToList();
+
+            foreach (var descriptor in descriptors)
+            {
+                services.Remove(descriptor);
+            }
 
             // Allow derived classes to add additional test services
             ConfigureAdditionalServices(services);
