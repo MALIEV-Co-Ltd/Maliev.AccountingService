@@ -1,4 +1,4 @@
-using Maliev.AccountingService.Api.Events;
+using Maliev.MessagingContracts.Contracts.Accounting;
 using Maliev.AccountingService.Api.Services;
 using MassTransit;
 using System.Diagnostics;
@@ -8,7 +8,7 @@ namespace Maliev.AccountingService.Api.Consumers;
 /// <summary>
 /// Consumer for PaymentReceived events from Sales service
 /// </summary>
-public class PaymentReceivedConsumer : IConsumer<PaymentReceivedEvent>
+public class PaymentReceivedConsumer : IConsumer<PaymentRecordedEvent>
 {
     private readonly IEventProcessingService _eventProcessingService;
     private readonly ILogger<PaymentReceivedConsumer> _logger;
@@ -27,20 +27,20 @@ public class PaymentReceivedConsumer : IConsumer<PaymentReceivedEvent>
     }
 
     /// <summary>
-    /// Consumes the <see cref="PaymentReceivedEvent"/>.
+    /// Consumes the <see cref="PaymentRecordedEvent"/>.
     /// </summary>
     /// <param name="context">The consume context.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task Consume(ConsumeContext<PaymentReceivedEvent> context)
+    public async Task Consume(ConsumeContext<PaymentRecordedEvent> context)
     {
         using var activity = Activity.Current?.Source.StartActivity("ConsumePaymentReceived");
-        activity?.SetTag("event.id", context.Message.EventId);
-        activity?.SetTag("payment.id", context.Message.PaymentId);
+        activity?.SetTag("event.id", context.Message.MessageId);
+        activity?.SetTag("payment.id", context.Message.Payload.PaymentId);
 
         _logger.LogInformation(
             "Received PaymentReceived event {EventId} for payment {PaymentId}",
-            context.Message.EventId,
-            context.Message.PaymentId);
+            context.Message.MessageId,
+            context.Message.Payload.PaymentId);
 
         try
         {
@@ -52,7 +52,7 @@ public class PaymentReceivedConsumer : IConsumer<PaymentReceivedEvent>
 
             _logger.LogInformation(
                 "Successfully processed PaymentReceived event {EventId}, created journal entry {JournalEntryId}",
-                context.Message.EventId,
+                context.Message.MessageId,
                 journalEntryId);
         }
         catch (Exception ex)
@@ -60,7 +60,7 @@ public class PaymentReceivedConsumer : IConsumer<PaymentReceivedEvent>
             _logger.LogError(
                 ex,
                 "Failed to process PaymentReceived event {EventId}",
-                context.Message.EventId);
+                context.Message.MessageId);
             throw;
         }
     }

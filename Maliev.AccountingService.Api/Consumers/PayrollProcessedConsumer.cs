@@ -1,4 +1,4 @@
-using Maliev.AccountingService.Api.Events;
+using Maliev.MessagingContracts.Contracts.Accounting;
 using Maliev.AccountingService.Api.Services;
 using MassTransit;
 using System.Diagnostics;
@@ -34,13 +34,13 @@ public class PayrollProcessedConsumer : IConsumer<PayrollProcessedEvent>
     public async Task Consume(ConsumeContext<PayrollProcessedEvent> context)
     {
         using var activity = Activity.Current?.Source.StartActivity("ConsumePayrollProcessed");
-        activity?.SetTag("event.id", context.Message.EventId);
-        activity?.SetTag("payroll.id", context.Message.PayrollId);
+        activity?.SetTag("event.id", context.Message.MessageId);
+        activity?.SetTag("payroll.id", context.Message.Payload.PayrollId);
 
         _logger.LogInformation(
             "Received PayrollProcessed event {EventId} for payroll {PayrollId}",
-            context.Message.EventId,
-            context.Message.PayrollId);
+            context.Message.MessageId,
+            context.Message.Payload.PayrollId);
 
         try
         {
@@ -52,7 +52,7 @@ public class PayrollProcessedConsumer : IConsumer<PayrollProcessedEvent>
 
             _logger.LogInformation(
                 "Successfully processed PayrollProcessed event {EventId}, created journal entry {JournalEntryId}",
-                context.Message.EventId,
+                context.Message.MessageId,
                 journalEntryId);
         }
         catch (Exception ex)
@@ -60,7 +60,7 @@ public class PayrollProcessedConsumer : IConsumer<PayrollProcessedEvent>
             _logger.LogError(
                 ex,
                 "Failed to process PayrollProcessed event {EventId}",
-                context.Message.EventId);
+                context.Message.MessageId);
             throw;
         }
     }

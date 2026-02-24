@@ -1,4 +1,5 @@
-using Maliev.AccountingService.Api.Events;
+using Maliev.MessagingContracts.Contracts.Accounting;
+using Maliev.MessagingContracts.Contracts.Invoices;
 
 namespace Maliev.AccountingService.Api.Services;
 
@@ -15,12 +16,12 @@ public interface IEventProcessingService
     /// <summary>
     /// Processes a payment received event and creates corresponding journal entries
     /// </summary>
-    Task<Guid> ProcessPaymentReceivedAsync(PaymentReceivedEvent @event, CancellationToken cancellationToken = default);
+    Task<Guid> ProcessPaymentReceivedAsync(PaymentRecordedEvent @event, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Processes a supplier invoice event and creates corresponding journal entries
     /// </summary>
-    Task<Guid> ProcessSupplierInvoiceAsync(SupplierInvoiceEvent @event, CancellationToken cancellationToken = default);
+    Task<Guid> ProcessSupplierInvoiceAsync(SupplierInvoiceReceivedEvent @event, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Processes an inventory movement event and creates corresponding journal entries

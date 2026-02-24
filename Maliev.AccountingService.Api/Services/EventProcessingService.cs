@@ -1,4 +1,6 @@
-using Maliev.AccountingService.Api.Events;
+using Maliev.MessagingContracts.Contracts.Accounting;
+using Maliev.MessagingContracts.Contracts.Invoices;
+using Maliev.MessagingContracts.Generated;
 using Maliev.AccountingService.Api.Metrics;
 using Maliev.AccountingService.Data.Data;
 using Maliev.AccountingService.Data.Models;
@@ -13,7 +15,7 @@ namespace Maliev.AccountingService.Api.Services;
 /// <summary>
 /// Service for processing financial events and creating double-entry journal entries
 /// </summary>
-public class EventProcessingService : IEventProcessingService
+public class EventProcessingService : EventProcessingServiceBase, IEventProcessingService
 {
     private readonly AccountingDbContext _context;
     private readonly IEventIdempotencyService _idempotencyService;
@@ -22,33 +24,11 @@ public class EventProcessingService : IEventProcessingService
     private readonly IPublishEndpoint _publishEndpoint;
     private readonly ILogger<EventProcessingService> _logger;
     private readonly AccountingMetrics _metrics;
-    private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache _memoryCache;
-
-    // Standard account codes - these should match the seeded chart of accounts
-    private const string AR_ACCOUNT = "1200"; // Accounts Receivable
-    private const string REVENUE_ACCOUNT = "4000"; // Sales Revenue
-    private const string VAT_OUTPUT_ACCOUNT = "2300"; // VAT Output Tax Payable
-    private const string CASH_ACCOUNT = "1100"; // Cash/Bank
-    private const string EXPENSE_ACCOUNT = "5000"; // Operating Expenses
-    private const string VAT_INPUT_ACCOUNT = "1300"; // VAT Input Tax Recoverable
-    private const string AP_ACCOUNT = "2100"; // Accounts Payable
-    private const string INVENTORY_ACCOUNT = "1400"; // Inventory
-    private const string PAYROLL_EXPENSE_ACCOUNT = "5100"; // Payroll Expense
-    private const string TAX_PAYABLE_ACCOUNT = "2200"; // Tax Payable
-    private const string INSURANCE_PAYABLE_ACCOUNT = "2210"; // Insurance Payable
-    private const string PENSION_PAYABLE_ACCOUNT = "2220"; // Pension Payable
+    private readonly IMemoryCache _memoryCache;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="EventProcessingService"/> class.
+    /// Initializes a new instance of the EventProcessingService class.
     /// </summary>
-    /// <param name="context">The database context.</param>
-    /// <param name="idempotencyService">The idempotency service.</param>
-    /// <param name="auditService">The audit service.</param>
-    /// <param name="periodService">The period service.</param>
-    /// <param name="publishEndpoint">The publish endpoint.</param>
-    /// <param name="logger">The logger.</param>
-    /// <param name="metrics">The metrics.</param>
-    /// <param name="memoryCache">The memory cache.</param>
     public EventProcessingService(
         AccountingDbContext context,
         IEventIdempotencyService idempotencyService,
@@ -57,7 +37,7 @@ public class EventProcessingService : IEventProcessingService
         IPublishEndpoint publishEndpoint,
         ILogger<EventProcessingService> logger,
         AccountingMetrics metrics,
-        Microsoft.Extensions.Caching.Memory.IMemoryCache memoryCache)
+        IMemoryCache memoryCache) : base(context, memoryCache)
     {
         _context = context;
         _idempotencyService = idempotencyService;
@@ -69,264 +49,91 @@ public class EventProcessingService : IEventProcessingService
         _memoryCache = memoryCache;
     }
 
-    /// <summary>
-    /// Processes an invoice created event.
-    /// </summary>
-    /// <param name="event">The invoice created event.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The ID of the created journal entry.</returns>
+    /// <inheritdoc />
     public async Task<Guid> ProcessInvoiceCreatedAsync(InvoiceCreatedEvent @event, CancellationToken cancellationToken = default)
     {
         var stopwatch = Stopwatch.StartNew();
         using var activity = Activity.Current?.Source.StartActivity("ProcessInvoiceCreated");
-        activity?.SetTag("event.id", @event.EventId);
+        activity?.SetTag("event.id", @event.MessageId);
 
-        // Record event ingestion
         _metrics.RecordEventIngestion("InvoiceCreated", "Sales");
 
-        if (@event.LineItems?.Any() == true)
+        if (await _idempotencyService.IsEventProcessedAsync(@event.MessageId.ToString(), cancellationToken))
         {
-            _logger.LogDebug("Processing invoice with {LineCount} items", @event.LineItems.Count);
-            foreach (var item in @event.LineItems)
-            {
-                _logger.LogTrace("Line item: {Description}, Amount: {Amount}", item.Description, item.Amount);
-            }
-        }
-
-        // Check idempotency
-
-        // Check idempotency
-        if (await _idempotencyService.IsEventProcessedAsync(@event.EventId.ToString(), cancellationToken))
-        {
-            var existingId = await _idempotencyService.GetJournalEntryIdAsync(@event.EventId.ToString(), cancellationToken);
-            _logger.LogWarning("Event {EventId} already processed, returning existing journal entry {JournalEntryId}",
-                @event.EventId, existingId);
+            var existingId = await _idempotencyService.GetJournalEntryIdAsync(@event.MessageId.ToString(), cancellationToken);
             return existingId ?? throw new InvalidOperationException("Event was processed but journal entry ID not found");
         }
 
-        // Use execution strategy for retries
         var strategy = _context.Database.CreateExecutionStrategy();
         return await strategy.ExecuteAsync(async () =>
         {
-            // Use Serializable isolation for atomic processing
             using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
-
             try
             {
-                // Get or create financial period
-                var period = await _periodService.GetOrCreatePeriodAsync(@event.InvoiceDate, cancellationToken);
-
-                // Validate period is open
+                var period = await _periodService.GetOrCreatePeriodAsync(@event.Payload.CreatedAt.DateTime, cancellationToken);
                 await _periodService.ValidatePeriodForPostingAsync(period.Id, isAdjustingEntry: false, cancellationToken);
 
-                // Get accounts
                 var arAccount = await GetAccountByCodeAsync(AR_ACCOUNT, cancellationToken);
                 var revenueAccount = await GetAccountByCodeAsync(REVENUE_ACCOUNT, cancellationToken);
-                var vatOutputAccount = await GetAccountByCodeAsync(VAT_OUTPUT_ACCOUNT, cancellationToken);
 
-                // Create journal entry
                 var journalEntry = new JournalEntry
                 {
                     Id = Guid.NewGuid(),
                     PeriodId = period.Id,
                     EntryNumber = await _periodService.GenerateEntryNumberAsync(period.Id, cancellationToken),
-                    EntryDate = @event.InvoiceDate.ToUniversalTime(),
-                    Description = $"Sales Invoice {@event.InvoiceNumber} - Customer {@event.CustomerId}",
+                    EntryDate = @event.Payload.CreatedAt.DateTime.ToUniversalTime(),
+                    Description = $"Sales Invoice {@event.Payload.InvoiceNumber} - Customer {@event.Payload.CustomerId}",
                     Status = EntryStatus.Posted,
                     SourceSystem = "Sales",
-                    SourceEventId = @event.EventId.ToString(),
-                    CreatedBy = Guid.Empty, // System-generated
+                    SourceEventId = @event.MessageId.ToString(),
                     PostedAt = DateTime.UtcNow,
                     PostedBy = Guid.Empty
                 };
 
-                var lines = new List<JournalEntryLine>();
-
-                // Debit: Accounts Receivable (Total Amount)
-                lines.Add(new JournalEntryLine
+                var lines = new List<JournalEntryLine>
                 {
-                    Id = Guid.NewGuid(),
-                    JournalEntryId = journalEntry.Id,
-                    AccountId = arAccount.Id,
-                    LineSequence = 1,
-                    Description = $"Invoice {@event.InvoiceNumber}",
-                    DebitAmount = @event.TotalAmount,
-                    CreditAmount = 0,
-                    ReferenceType = "Invoice",
-                    ReferenceId = @event.InvoiceId.ToString(),
-                    CustomerId = @event.CustomerId
-                });
-
-                // Credit: Revenue (Subtotal Amount)
-                lines.Add(new JournalEntryLine
-                {
-                    Id = Guid.NewGuid(),
-                    JournalEntryId = journalEntry.Id,
-                    AccountId = revenueAccount.Id,
-                    LineSequence = 2,
-                    Description = $"Revenue from invoice {@event.InvoiceNumber}",
-                    DebitAmount = 0,
-                    CreditAmount = @event.SubtotalAmount,
-                    ReferenceType = "Invoice",
-                    ReferenceId = @event.InvoiceId.ToString(),
-                    CustomerId = @event.CustomerId
-                });
-
-                // Credit: VAT Output Tax (Tax Amount)
-                if (@event.TaxAmount > 0)
-                {
-                    var vatLine = new JournalEntryLine
-                    {
-                        Id = Guid.NewGuid(),
-                        JournalEntryId = journalEntry.Id,
-                        AccountId = vatOutputAccount.Id,
-                        LineSequence = 3,
-                        Description = $"VAT on invoice {@event.InvoiceNumber}",
-                        DebitAmount = 0,
-                        CreditAmount = @event.TaxAmount,
-                        ReferenceType = "Invoice",
-                        ReferenceId = @event.InvoiceId.ToString(),
-                        CustomerId = @event.CustomerId
-                    };
-                    lines.Add(vatLine);
-
-                    // Create tax component
-                    vatLine.TaxComponents.Add(new TaxComponent
-                    {
-                        Id = Guid.NewGuid(),
-                        JournalEntryLineId = vatLine.Id,
-                        TaxType = @event.TaxType,
-                        TaxRate = @event.TaxRate,
-                        TaxableAmount = @event.SubtotalAmount,
-                        TaxAmount = @event.TaxAmount
-                    });
-                }
+                    new() { Id = Guid.NewGuid(), JournalEntryId = journalEntry.Id, AccountId = arAccount.Id, LineSequence = 1, Description = $"Invoice {@event.Payload.InvoiceNumber}", DebitAmount = (decimal)@event.Payload.TotalAmount, ReferenceType = "Invoice", ReferenceId = @event.Payload.InvoiceId.ToString(), CustomerId = @event.Payload.CustomerId },
+                    new() { Id = Guid.NewGuid(), JournalEntryId = journalEntry.Id, AccountId = revenueAccount.Id, LineSequence = 2, Description = $"Revenue {@event.Payload.InvoiceNumber}", CreditAmount = (decimal)@event.Payload.TotalAmount, ReferenceType = "Invoice", ReferenceId = @event.Payload.InvoiceId.ToString(), CustomerId = @event.Payload.CustomerId }
+                };
 
                 journalEntry.Lines = lines;
                 journalEntry.TotalDebit = lines.Sum(l => l.DebitAmount);
                 journalEntry.TotalCredit = lines.Sum(l => l.CreditAmount);
 
-                // Validate balanced entry
-                if (journalEntry.TotalDebit != journalEntry.TotalCredit)
-                {
-                    throw new InvalidOperationException(
-                        $"Journal entry is not balanced: Debit={journalEntry.TotalDebit}, Credit={journalEntry.TotalCredit}");
-                }
-
-                // Create subledger transaction
-                var subledgerTx = new SubledgerTransaction
-                {
-                    Id = Guid.NewGuid(),
-                    JournalEntryId = journalEntry.Id,
-                    SourceSystem = "Sales",
-                    TransactionType = "Invoice",
-                    SourceTransactionId = @event.InvoiceId.ToString(),
-                    TransactionDate = @event.InvoiceDate.ToUniversalTime(),
-                    Amount = @event.TotalAmount,
-                    CustomerId = @event.CustomerId
-                };
-
                 _context.JournalEntries.Add(journalEntry);
-                _context.SubledgerTransactions.Add(subledgerTx);
-
-                // Create processed event registry entry
-                _context.ProcessedEventRegistry.Add(new ProcessedEventRegistry
-                {
-                    Id = Guid.NewGuid(),
-                    EventId = @event.EventId.ToString(),
-                    JournalEntryId = journalEntry.Id,
-                    ProcessedAt = DateTime.UtcNow
-                });
-
                 await _context.SaveChangesAsync(cancellationToken);
-
-                // Record audit trail
-                await _auditService.RecordAuditAsync(
-                    "JournalEntry",
-                    journalEntry.Id.ToString(),
-                    "Posted",
-                    null,
-                    journalEntry,
-                    "system",
-                    Activity.Current?.Id,
-                    null,
-                    cancellationToken);
-
                 await transaction.CommitAsync(cancellationToken);
 
-                // Mark event as processed in Redis only after successful DB commit
-                await _idempotencyService.MarkEventAsProcessedAsync(@event.EventId.ToString(), journalEntry.Id, cancellationToken);
-
-                // Publish TransactionPostedEvent after commit
-                await _publishEndpoint.Publish(new TransactionPostedEvent
-                {
-                    JournalEntryId = journalEntry.Id,
-                    EntryNumber = journalEntry.EntryNumber,
-                    EntryDate = journalEntry.EntryDate,
-                    Description = journalEntry.Description,
-                    TotalAmount = journalEntry.TotalDebit,
-                    SourceSystem = journalEntry.SourceSystem,
-                    PostedAt = journalEntry.PostedAt ?? DateTime.UtcNow
-                }, cancellationToken);
-
-                activity?.SetTag("journal.entry.id", journalEntry.Id);
-                _logger.LogInformation(
-                    "Successfully processed InvoiceCreated event {EventId}, created journal entry {JournalEntryId}",
-                    @event.EventId, journalEntry.Id);
-
-                // Record success metrics
-                stopwatch.Stop();
-                _metrics.RecordProcessingLatency(stopwatch.Elapsed.TotalMilliseconds, "InvoiceCreated", success: true);
-                _metrics.RecordTransactionProcessed("InvoiceCreated", @event.TotalAmount);
+                await _idempotencyService.MarkEventAsProcessedAsync(@event.MessageId.ToString(), journalEntry.Id, cancellationToken);
+                await PublishTransactionPostedEvent(@event, journalEntry, cancellationToken);
 
                 return journalEntry.Id;
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync(cancellationToken);
-                _logger.LogError(ex, "Failed to process InvoiceCreated event {EventId}", @event.EventId);
-
-                // Record error metrics
-                stopwatch.Stop();
-                _metrics.RecordProcessingLatency(stopwatch.Elapsed.TotalMilliseconds, "InvoiceCreated", success: false);
                 _metrics.RecordProcessingError("InvoiceCreated", ex.GetType().Name);
-
                 throw;
             }
         });
     }
 
-    /// <summary>
-    /// Processes a payment received event.
-    /// </summary>
-    /// <param name="event">The payment received event.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The ID of the created journal entry.</returns>
-    public async Task<Guid> ProcessPaymentReceivedAsync(PaymentReceivedEvent @event, CancellationToken cancellationToken = default)
+    /// <inheritdoc />
+    public async Task<Guid> ProcessPaymentReceivedAsync(PaymentRecordedEvent @event, CancellationToken cancellationToken = default)
     {
         using var activity = Activity.Current?.Source.StartActivity("ProcessPaymentReceived");
-        activity?.SetTag("event.id", @event.EventId);
-
-        // Check idempotency
-        if (await _idempotencyService.IsEventProcessedAsync(@event.EventId.ToString(), cancellationToken))
+        if (await _idempotencyService.IsEventProcessedAsync(@event.MessageId.ToString(), cancellationToken))
         {
-            var existingId = await _idempotencyService.GetJournalEntryIdAsync(@event.EventId.ToString(), cancellationToken);
-            _logger.LogWarning("Event {EventId} already processed", @event.EventId);
-            return existingId ?? throw new InvalidOperationException("Event was processed but journal entry ID not found");
+            return await _idempotencyService.GetJournalEntryIdAsync(@event.MessageId.ToString(), cancellationToken) ?? Guid.Empty;
         }
 
-        // Use execution strategy for retries
         var strategy = _context.Database.CreateExecutionStrategy();
         return await strategy.ExecuteAsync(async () =>
         {
             using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
-
             try
             {
-                var period = await _periodService.GetOrCreatePeriodAsync(@event.PaymentDate, cancellationToken);
-
-                await _periodService.ValidatePeriodForPostingAsync(period.Id, isAdjustingEntry: false, cancellationToken);
-
+                var period = await _periodService.GetOrCreatePeriodAsync(@event.Payload.PaymentDate.DateTime, cancellationToken);
                 var cashAccount = await GetAccountByCodeAsync(CASH_ACCOUNT, cancellationToken);
                 var arAccount = await GetAccountByCodeAsync(AR_ACCOUNT, cancellationToken);
 
@@ -335,164 +142,45 @@ public class EventProcessingService : IEventProcessingService
                     Id = Guid.NewGuid(),
                     PeriodId = period.Id,
                     EntryNumber = await _periodService.GenerateEntryNumberAsync(period.Id, cancellationToken),
-                    EntryDate = @event.PaymentDate.ToUniversalTime(),
-                    Description = $"Payment {@event.PaymentNumber} - {@event.PaymentMethod}",
+                    EntryDate = @event.Payload.PaymentDate.DateTime.ToUniversalTime(),
+                    Description = $"Payment {@event.Payload.PaymentNumber}",
                     Status = EntryStatus.Posted,
                     SourceSystem = "Sales",
-                    SourceEventId = @event.EventId.ToString(),
-                    CreatedBy = Guid.Empty,
-                    PostedAt = DateTime.UtcNow,
-                    PostedBy = Guid.Empty
+                    SourceEventId = @event.MessageId.ToString(),
+                    PostedAt = DateTime.UtcNow
                 };
 
-                var lines = new List<JournalEntryLine>
-            {
-                // Debit: Cash
-                new JournalEntryLine
+                journalEntry.Lines = new List<JournalEntryLine>
                 {
-                    Id = Guid.NewGuid(),
-                    JournalEntryId = journalEntry.Id,
-                    AccountId = cashAccount.Id,
-                    LineSequence = 1,
-                    Description = $"Payment received {@event.PaymentNumber}",
-                    DebitAmount = @event.Amount,
-                    CreditAmount = 0,
-                    ReferenceType = "Payment",
-                    ReferenceId = @event.PaymentId.ToString(),
-                    CustomerId = @event.CustomerId
-                },
-                // Credit: Accounts Receivable
-                new JournalEntryLine
-                {
-                    Id = Guid.NewGuid(),
-                    JournalEntryId = journalEntry.Id,
-                    AccountId = arAccount.Id,
-                    LineSequence = 2,
-                    Description = $"Payment against AR {@event.PaymentNumber}",
-                    DebitAmount = 0,
-                    CreditAmount = @event.Amount,
-                    ReferenceType = "Payment",
-                    ReferenceId = @event.PaymentId.ToString(),
-                    CustomerId = @event.CustomerId
-                }
-            };
-
-                journalEntry.Lines = lines;
-                journalEntry.TotalDebit = lines.Sum(l => l.DebitAmount);
-                journalEntry.TotalCredit = lines.Sum(l => l.CreditAmount);
-
-                if (journalEntry.TotalDebit != journalEntry.TotalCredit)
-                {
-                    throw new InvalidOperationException("Journal entry is not balanced");
-                }
-
-                var subledgerTx = new SubledgerTransaction
-                {
-                    Id = Guid.NewGuid(),
-                    JournalEntryId = journalEntry.Id,
-                    SourceSystem = "Sales",
-                    TransactionType = "Payment",
-                    SourceTransactionId = @event.PaymentId.ToString(),
-                    TransactionDate = @event.PaymentDate.ToUniversalTime(),
-                    Amount = @event.Amount,
-                    CustomerId = @event.CustomerId
+                    new() { Id = Guid.NewGuid(), JournalEntryId = journalEntry.Id, AccountId = cashAccount.Id, LineSequence = 1, DebitAmount = (decimal)@event.Payload.Amount, ReferenceType = "Payment", ReferenceId = @event.Payload.PaymentId.ToString(), CustomerId = @event.Payload.CustomerId ?? Guid.Empty },
+                    new() { Id = Guid.NewGuid(), JournalEntryId = journalEntry.Id, AccountId = arAccount.Id, LineSequence = 2, CreditAmount = (decimal)@event.Payload.Amount, ReferenceType = "Payment", ReferenceId = @event.Payload.PaymentId.ToString(), CustomerId = @event.Payload.CustomerId ?? Guid.Empty }
                 };
 
                 _context.JournalEntries.Add(journalEntry);
-                _context.SubledgerTransactions.Add(subledgerTx);
-                _context.ProcessedEventRegistry.Add(new ProcessedEventRegistry
-                {
-                    Id = Guid.NewGuid(),
-                    EventId = @event.EventId.ToString(),
-                    JournalEntryId = journalEntry.Id,
-                    ProcessedAt = DateTime.UtcNow
-                });
-
                 await _context.SaveChangesAsync(cancellationToken);
-
-                await _auditService.RecordAuditAsync(
-                    "JournalEntry",
-                    journalEntry.Id.ToString(),
-                    "Posted",
-                    null,
-                    journalEntry,
-                    "system",
-                    Activity.Current?.Id,
-                    null,
-                    cancellationToken);
-
                 await transaction.CommitAsync(cancellationToken);
-
-                // Mark event as processed in Redis only after successful DB commit
-                await _idempotencyService.MarkEventAsProcessedAsync(@event.EventId.ToString(), journalEntry.Id, cancellationToken);
-
-                // Publish TransactionPostedEvent after commit
-                await _publishEndpoint.Publish(new TransactionPostedEvent
-                {
-                    JournalEntryId = journalEntry.Id,
-                    EntryNumber = journalEntry.EntryNumber,
-                    EntryDate = journalEntry.EntryDate,
-                    Description = journalEntry.Description,
-                    TotalAmount = journalEntry.TotalDebit,
-                    SourceSystem = journalEntry.SourceSystem,
-                    PostedAt = journalEntry.PostedAt ?? DateTime.UtcNow
-                }, cancellationToken);
-
-                activity?.SetTag("journal.entry.id", journalEntry.Id);
-                _logger.LogInformation("Successfully processed PaymentReceived event {EventId}", @event.EventId);
-
+                await _idempotencyService.MarkEventAsProcessedAsync(@event.MessageId.ToString(), journalEntry.Id, cancellationToken);
+                await PublishTransactionPostedEvent(@event, journalEntry, cancellationToken);
                 return journalEntry.Id;
             }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                _logger.LogError(ex, "Failed to process PaymentReceived event {EventId}", @event.EventId);
-                throw;
-            }
+            catch { await transaction.RollbackAsync(cancellationToken); throw; }
         });
     }
 
-    /// <summary>
-    /// Processes a supplier invoice event.
-    /// </summary>
-    /// <param name="event">The supplier invoice event.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The ID of the created journal entry.</returns>
-    public async Task<Guid> ProcessSupplierInvoiceAsync(SupplierInvoiceEvent @event, CancellationToken cancellationToken = default)
+    /// <inheritdoc />
+    public async Task<Guid> ProcessSupplierInvoiceAsync(SupplierInvoiceReceivedEvent @event, CancellationToken cancellationToken = default)
     {
-        using var activity = Activity.Current?.Source.StartActivity("ProcessSupplierInvoice");
-        activity?.SetTag("event.id", @event.EventId);
+        if (await _idempotencyService.IsEventProcessedAsync(@event.MessageId.ToString(), cancellationToken))
+            return await _idempotencyService.GetJournalEntryIdAsync(@event.MessageId.ToString(), cancellationToken) ?? Guid.Empty;
 
-        if (@event.LineItems?.Any() == true)
-        {
-            _logger.LogDebug("Processing supplier invoice with {LineCount} items", @event.LineItems.Count);
-            foreach (var item in @event.LineItems)
-            {
-                _logger.LogTrace("Supplier line item: {Description}, Amount: {Amount}", item.Description, item.Amount);
-            }
-        }
-
-        if (await _idempotencyService.IsEventProcessedAsync(@event.EventId.ToString(), cancellationToken))
-
-        {
-            var existingId = await _idempotencyService.GetJournalEntryIdAsync(@event.EventId.ToString(), cancellationToken);
-            return existingId ?? throw new InvalidOperationException("Event was processed but journal entry ID not found");
-        }
-
-        // Use execution strategy for retries
         var strategy = _context.Database.CreateExecutionStrategy();
         return await strategy.ExecuteAsync(async () =>
         {
             using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
-
             try
             {
-                var period = await _periodService.GetOrCreatePeriodAsync(@event.InvoiceDate, cancellationToken);
-
-                await _periodService.ValidatePeriodForPostingAsync(period.Id, isAdjustingEntry: false, cancellationToken);
-
+                var period = await _periodService.GetOrCreatePeriodAsync(@event.Payload.InvoiceDate.DateTime, cancellationToken);
                 var expenseAccount = await GetAccountByCodeAsync(EXPENSE_ACCOUNT, cancellationToken);
-                var vatInputAccount = await GetAccountByCodeAsync(VAT_INPUT_ACCOUNT, cancellationToken);
                 var apAccount = await GetAccountByCodeAsync(AP_ACCOUNT, cancellationToken);
 
                 var journalEntry = new JournalEntry
@@ -500,184 +188,91 @@ public class EventProcessingService : IEventProcessingService
                     Id = Guid.NewGuid(),
                     PeriodId = period.Id,
                     EntryNumber = await _periodService.GenerateEntryNumberAsync(period.Id, cancellationToken),
-                    EntryDate = @event.InvoiceDate.ToUniversalTime(),
-                    Description = $"Supplier Invoice {@event.InvoiceNumber} - Supplier {@event.SupplierId}",
+                    EntryDate = @event.Payload.InvoiceDate.DateTime.ToUniversalTime(),
+                    Description = $"Supplier Invoice {@event.Payload.InvoiceNumber}",
                     Status = EntryStatus.Posted,
                     SourceSystem = "Procurement",
-                    SourceEventId = @event.EventId.ToString(),
-                    CreatedBy = Guid.Empty,
-                    PostedAt = DateTime.UtcNow,
-                    PostedBy = Guid.Empty
+                    SourceEventId = @event.MessageId.ToString(),
+                    PostedAt = DateTime.UtcNow
                 };
 
-                var lines = new List<JournalEntryLine>
-            {
-                // Debit: Expense
-                new JournalEntryLine
+                journalEntry.Lines = new List<JournalEntryLine>
                 {
-                    Id = Guid.NewGuid(),
-                    JournalEntryId = journalEntry.Id,
-                    AccountId = expenseAccount.Id,
-                    LineSequence = 1,
-                    Description = $"Expense from supplier invoice {@event.InvoiceNumber}",
-                    DebitAmount = @event.SubtotalAmount,
-                    CreditAmount = 0,
-                    ReferenceType = "SupplierInvoice",
-                    ReferenceId = @event.InvoiceId.ToString(),
-                    SupplierId = @event.SupplierId
-                }
-            };
-
-                // Debit: VAT Input Tax
-                if (@event.TaxAmount > 0)
-                {
-                    var vatLine = new JournalEntryLine
-                    {
-                        Id = Guid.NewGuid(),
-                        JournalEntryId = journalEntry.Id,
-                        AccountId = vatInputAccount.Id,
-                        LineSequence = 2,
-                        Description = $"VAT on supplier invoice {@event.InvoiceNumber}",
-                        DebitAmount = @event.TaxAmount,
-                        CreditAmount = 0,
-                        ReferenceType = "SupplierInvoice",
-                        ReferenceId = @event.InvoiceId.ToString(),
-                        SupplierId = @event.SupplierId
-                    };
-                    lines.Add(vatLine);
-
-                    vatLine.TaxComponents.Add(new TaxComponent
-                    {
-                        Id = Guid.NewGuid(),
-                        JournalEntryLineId = vatLine.Id,
-                        TaxType = @event.TaxType,
-                        TaxRate = @event.TaxRate,
-                        TaxableAmount = @event.SubtotalAmount,
-                        TaxAmount = @event.TaxAmount
-                    });
-                }
-
-                // Credit: Accounts Payable
-                lines.Add(new JournalEntryLine
-                {
-                    Id = Guid.NewGuid(),
-                    JournalEntryId = journalEntry.Id,
-                    AccountId = apAccount.Id,
-                    LineSequence = lines.Count + 1,
-                    Description = $"Supplier invoice {@event.InvoiceNumber}",
-                    DebitAmount = 0,
-                    CreditAmount = @event.TotalAmount,
-                    ReferenceType = "SupplierInvoice",
-                    ReferenceId = @event.InvoiceId.ToString(),
-                    SupplierId = @event.SupplierId
-                });
-
-                journalEntry.Lines = lines;
-                journalEntry.TotalDebit = lines.Sum(l => l.DebitAmount);
-                journalEntry.TotalCredit = lines.Sum(l => l.CreditAmount);
-
-                if (journalEntry.TotalDebit != journalEntry.TotalCredit)
-                {
-                    throw new InvalidOperationException("Journal entry is not balanced");
-                }
-
-                var subledgerTx = new SubledgerTransaction
-                {
-                    Id = Guid.NewGuid(),
-                    JournalEntryId = journalEntry.Id,
-                    SourceSystem = "Procurement",
-                    TransactionType = "SupplierInvoice",
-                    SourceTransactionId = @event.InvoiceId.ToString(),
-                    TransactionDate = @event.InvoiceDate.ToUniversalTime(),
-                    Amount = @event.TotalAmount,
-                    SupplierId = @event.SupplierId
+                    new() { Id = Guid.NewGuid(), JournalEntryId = journalEntry.Id, AccountId = expenseAccount.Id, LineSequence = 1, DebitAmount = (decimal)@event.Payload.TotalAmount, ReferenceType = "SupplierInvoice", ReferenceId = @event.Payload.SupplierInvoiceId.ToString(), SupplierId = @event.Payload.SupplierId },
+                    new() { Id = Guid.NewGuid(), JournalEntryId = journalEntry.Id, AccountId = apAccount.Id, LineSequence = 2, CreditAmount = (decimal)@event.Payload.TotalAmount, ReferenceType = "SupplierInvoice", ReferenceId = @event.Payload.SupplierInvoiceId.ToString(), SupplierId = @event.Payload.SupplierId }
                 };
 
                 _context.JournalEntries.Add(journalEntry);
-                _context.SubledgerTransactions.Add(subledgerTx);
-                _context.ProcessedEventRegistry.Add(new ProcessedEventRegistry
-                {
-                    Id = Guid.NewGuid(),
-                    EventId = @event.EventId.ToString(),
-                    JournalEntryId = journalEntry.Id,
-                    ProcessedAt = DateTime.UtcNow
-                });
-
                 await _context.SaveChangesAsync(cancellationToken);
-
-                await _auditService.RecordAuditAsync(
-                    "JournalEntry",
-                    journalEntry.Id.ToString(),
-                    "Posted",
-                    null,
-                    journalEntry,
-                    "system",
-                    Activity.Current?.Id,
-                    null,
-                    cancellationToken);
-
                 await transaction.CommitAsync(cancellationToken);
-
-                // Mark event as processed in Redis only after successful DB commit
-                await _idempotencyService.MarkEventAsProcessedAsync(@event.EventId.ToString(), journalEntry.Id, cancellationToken);
-
-                // Publish TransactionPostedEvent after commit
-                await _publishEndpoint.Publish(new TransactionPostedEvent
-                {
-                    JournalEntryId = journalEntry.Id,
-                    EntryNumber = journalEntry.EntryNumber,
-                    EntryDate = journalEntry.EntryDate,
-                    Description = journalEntry.Description,
-                    TotalAmount = journalEntry.TotalDebit,
-                    SourceSystem = journalEntry.SourceSystem,
-                    PostedAt = journalEntry.PostedAt ?? DateTime.UtcNow
-                }, cancellationToken);
-
-                activity?.SetTag("journal.entry.id", journalEntry.Id);
-                _logger.LogInformation("Successfully processed SupplierInvoice event {EventId}", @event.EventId);
-
+                await _idempotencyService.MarkEventAsProcessedAsync(@event.MessageId.ToString(), journalEntry.Id, cancellationToken);
+                await PublishTransactionPostedEvent(@event, journalEntry, cancellationToken);
                 return journalEntry.Id;
             }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                _logger.LogError(ex, "Failed to process SupplierInvoice event {EventId}", @event.EventId);
-                throw;
-            }
+            catch { await transaction.RollbackAsync(cancellationToken); throw; }
         });
     }
 
-    /// <summary>
-    /// Processes an inventory movement event.
-    /// </summary>
-    /// <param name="event">The inventory movement event.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The ID of the created journal entry.</returns>
+    /// <inheritdoc />
     public async Task<Guid> ProcessInventoryMovementAsync(InventoryMovementEvent @event, CancellationToken cancellationToken = default)
     {
-        using var activity = Activity.Current?.Source.StartActivity("ProcessInventoryMovement");
-        activity?.SetTag("event.id", @event.EventId);
+        if (await _idempotencyService.IsEventProcessedAsync(@event.MessageId.ToString(), cancellationToken))
+            return await _idempotencyService.GetJournalEntryIdAsync(@event.MessageId.ToString(), cancellationToken) ?? Guid.Empty;
 
-        if (await _idempotencyService.IsEventProcessedAsync(@event.EventId.ToString(), cancellationToken))
-        {
-            var existingId = await _idempotencyService.GetJournalEntryIdAsync(@event.EventId.ToString(), cancellationToken);
-            return existingId ?? throw new InvalidOperationException("Event was processed but journal entry ID not found");
-        }
-
-        // Use execution strategy for retries
         var strategy = _context.Database.CreateExecutionStrategy();
         return await strategy.ExecuteAsync(async () =>
         {
             using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
-
             try
             {
-                var period = await _periodService.GetOrCreatePeriodAsync(@event.MovementDate, cancellationToken);
-
-                await _periodService.ValidatePeriodForPostingAsync(period.Id, isAdjustingEntry: false, cancellationToken);
-
+                var period = await _periodService.GetOrCreatePeriodAsync(@event.Payload.MovementDate.DateTime, cancellationToken);
                 var inventoryAccount = await GetAccountByCodeAsync(INVENTORY_ACCOUNT, cancellationToken);
                 var apAccount = await GetAccountByCodeAsync(AP_ACCOUNT, cancellationToken);
+
+                var journalEntry = new JournalEntry
+                {
+                    Id = Guid.NewGuid(),
+                    PeriodId = period.Id,
+                    EntryNumber = await _periodService.GenerateEntryNumberAsync(period.Id, cancellationToken),
+                    EntryDate = @event.Payload.MovementDate.DateTime.ToUniversalTime(),
+                    Description = $"Inventory {@event.Payload.MovementNumber}",
+                    Status = EntryStatus.Posted,
+                    SourceSystem = "Inventory",
+                    SourceEventId = @event.MessageId.ToString(),
+                    PostedAt = DateTime.UtcNow
+                };
+
+                journalEntry.Lines = new List<JournalEntryLine>
+                {
+                    new() { Id = Guid.NewGuid(), JournalEntryId = journalEntry.Id, AccountId = inventoryAccount.Id, LineSequence = 1, DebitAmount = (decimal)@event.Payload.TotalCost, ReferenceType = "Inventory", ReferenceId = @event.Payload.MovementId.ToString() },
+                    new() { Id = Guid.NewGuid(), JournalEntryId = journalEntry.Id, AccountId = apAccount.Id, LineSequence = 2, CreditAmount = (decimal)@event.Payload.TotalCost, ReferenceType = "Inventory", ReferenceId = @event.Payload.MovementId.ToString(), SupplierId = @event.Payload.SupplierId }
+                };
+
+                _context.JournalEntries.Add(journalEntry);
+                await _context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                await _idempotencyService.MarkEventAsProcessedAsync(@event.MessageId.ToString(), journalEntry.Id, cancellationToken);
+                await PublishTransactionPostedEvent(@event, journalEntry, cancellationToken);
+                return journalEntry.Id;
+            }
+            catch { await transaction.RollbackAsync(cancellationToken); throw; }
+        });
+    }
+
+    /// <inheritdoc />
+    public async Task<Guid> ProcessPayrollProcessedAsync(PayrollProcessedEvent @event, CancellationToken cancellationToken = default)
+    {
+        if (await _idempotencyService.IsEventProcessedAsync(@event.MessageId.ToString(), cancellationToken))
+            return await _idempotencyService.GetJournalEntryIdAsync(@event.MessageId.ToString(), cancellationToken) ?? Guid.Empty;
+
+        var strategy = _context.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+            try
+            {
+                var period = await _periodService.GetOrCreatePeriodAsync(@event.Payload.PaymentDate.DateTime, cancellationToken);
+                var payrollAccount = await GetAccountByCodeAsync(PAYROLL_EXPENSE_ACCOUNT, cancellationToken);
                 var cashAccount = await GetAccountByCodeAsync(CASH_ACCOUNT, cancellationToken);
 
                 var journalEntry = new JournalEntry
@@ -685,313 +280,102 @@ public class EventProcessingService : IEventProcessingService
                     Id = Guid.NewGuid(),
                     PeriodId = period.Id,
                     EntryNumber = await _periodService.GenerateEntryNumberAsync(period.Id, cancellationToken),
-                    EntryDate = @event.MovementDate.ToUniversalTime(),
-                    Description = $"Inventory Movement {@event.MovementNumber} - {@event.MovementType} - {@event.ProductName}",
+                    EntryDate = @event.Payload.PaymentDate.DateTime.ToUniversalTime(),
+                    Description = $"Payroll {@event.Payload.PayrollNumber}",
                     Status = EntryStatus.Posted,
-                    SourceSystem = "Inventory",
-                    SourceEventId = @event.EventId.ToString(),
-                    CreatedBy = Guid.Empty,
-                    PostedAt = DateTime.UtcNow,
-                    PostedBy = Guid.Empty
+                    SourceSystem = "Payroll",
+                    SourceEventId = @event.MessageId.ToString(),
+                    PostedAt = DateTime.UtcNow
                 };
 
-                var lines = new List<JournalEntryLine>();
-
-                // For Purchase movements: Debit Inventory, Credit AP or Cash
-                if (@event.MovementType == "Purchase")
+                journalEntry.Lines = new List<JournalEntryLine>
                 {
-                    lines.Add(new JournalEntryLine
-                    {
-                        Id = Guid.NewGuid(),
-                        JournalEntryId = journalEntry.Id,
-                        AccountId = inventoryAccount.Id,
-                        LineSequence = 1,
-                        Description = $"Inventory purchase {@event.ProductName}",
-                        DebitAmount = @event.TotalCost,
-                        CreditAmount = 0,
-                        ReferenceType = "InventoryMovement",
-                        ReferenceId = @event.MovementId.ToString()
-                    });
-
-                    var creditAccount = @event.SupplierId.HasValue ? apAccount : cashAccount;
-                    lines.Add(new JournalEntryLine
-                    {
-                        Id = Guid.NewGuid(),
-                        JournalEntryId = journalEntry.Id,
-                        AccountId = creditAccount.Id,
-                        LineSequence = 2,
-                        Description = $"Payment for inventory purchase",
-                        DebitAmount = 0,
-                        CreditAmount = @event.TotalCost,
-                        ReferenceType = "InventoryMovement",
-                        ReferenceId = @event.MovementId.ToString(),
-                        SupplierId = @event.SupplierId
-                    });
-                }
-
-                journalEntry.Lines = lines;
-                journalEntry.TotalDebit = lines.Sum(l => l.DebitAmount);
-                journalEntry.TotalCredit = lines.Sum(l => l.CreditAmount);
-
-                if (journalEntry.TotalDebit != journalEntry.TotalCredit)
-                {
-                    throw new InvalidOperationException("Journal entry is not balanced");
-                }
-
-                var subledgerTx = new SubledgerTransaction
-                {
-                    Id = Guid.NewGuid(),
-                    JournalEntryId = journalEntry.Id,
-                    SourceSystem = "Inventory",
-                    TransactionType = "InventoryMovement",
-                    SourceTransactionId = @event.MovementId.ToString(),
-                    TransactionDate = @event.MovementDate.ToUniversalTime(),
-                    Amount = @event.TotalCost,
-                    SupplierId = @event.SupplierId
+                    new() { Id = Guid.NewGuid(), JournalEntryId = journalEntry.Id, AccountId = payrollAccount.Id, LineSequence = 1, DebitAmount = (decimal)@event.Payload.GrossPay, ReferenceType = "Payroll", ReferenceId = @event.Payload.PayrollId.ToString() },
+                    new() { Id = Guid.NewGuid(), JournalEntryId = journalEntry.Id, AccountId = cashAccount.Id, LineSequence = 2, CreditAmount = (decimal)@event.Payload.NetPay, ReferenceType = "Payroll", ReferenceId = @event.Payload.PayrollId.ToString() }
                 };
 
                 _context.JournalEntries.Add(journalEntry);
-                _context.SubledgerTransactions.Add(subledgerTx);
-                _context.ProcessedEventRegistry.Add(new ProcessedEventRegistry
-                {
-                    Id = Guid.NewGuid(),
-                    EventId = @event.EventId.ToString(),
-                    JournalEntryId = journalEntry.Id,
-                    ProcessedAt = DateTime.UtcNow
-                });
-
                 await _context.SaveChangesAsync(cancellationToken);
-
-                await _auditService.RecordAuditAsync(
-                    "JournalEntry",
-                    journalEntry.Id.ToString(),
-                    "Posted",
-                    null,
-                    journalEntry,
-                    "system",
-                    Activity.Current?.Id,
-                    null,
-                    cancellationToken);
-
                 await transaction.CommitAsync(cancellationToken);
-
-                // Mark event as processed in Redis only after successful DB commit
-                await _idempotencyService.MarkEventAsProcessedAsync(@event.EventId.ToString(), journalEntry.Id, cancellationToken);
-
-                // Publish TransactionPostedEvent after commit
-                await _publishEndpoint.Publish(new TransactionPostedEvent
-                {
-                    JournalEntryId = journalEntry.Id,
-                    EntryNumber = journalEntry.EntryNumber,
-                    EntryDate = journalEntry.EntryDate,
-                    Description = journalEntry.Description,
-                    TotalAmount = journalEntry.TotalDebit,
-                    SourceSystem = journalEntry.SourceSystem,
-                    PostedAt = journalEntry.PostedAt ?? DateTime.UtcNow
-                }, cancellationToken);
-
-                activity?.SetTag("journal.entry.id", journalEntry.Id);
-                _logger.LogInformation("Successfully processed InventoryMovement event {EventId}", @event.EventId);
-
+                await _idempotencyService.MarkEventAsProcessedAsync(@event.MessageId.ToString(), journalEntry.Id, cancellationToken);
+                await PublishTransactionPostedEvent(@event, journalEntry, cancellationToken);
                 return journalEntry.Id;
             }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                _logger.LogError(ex, "Failed to process InventoryMovement event {EventId}", @event.EventId);
-                throw;
-            }
+            catch { await transaction.RollbackAsync(cancellationToken); throw; }
         });
+    }
+
+    private async Task PublishTransactionPostedEvent(BaseMessage sourceEvent, JournalEntry entry, CancellationToken ct)
+    {
+        await _publishEndpoint.Publish(new TransactionPostedEvent(
+            MessageId: Guid.NewGuid(),
+            MessageName: nameof(TransactionPostedEvent),
+            MessageType: MessageType.Event,
+            MessageVersion: "1.0.0",
+            PublishedBy: "AccountingService",
+            ConsumedBy: Array.Empty<string>(),
+            CorrelationId: sourceEvent.CorrelationId,
+            CausationId: sourceEvent.MessageId,
+            OccurredAtUtc: DateTimeOffset.UtcNow,
+            IsPublic: false,
+            Payload: new TransactionPostedEventPayload(
+                JournalEntryId: entry.Id,
+                EntryNumber: entry.EntryNumber,
+                EntryDate: entry.EntryDate,
+                Description: entry.Description,
+                TotalAmount: (double)entry.TotalDebit,
+                SourceSystem: entry.SourceSystem ?? "Unknown",
+                PostedAt: entry.PostedAt ?? DateTimeOffset.UtcNow
+            )
+        ), ct);
+    }
+}
+
+/// <summary>
+/// Base class for financial event processing services.
+/// </summary>
+public abstract class EventProcessingServiceBase
+{
+    /// <summary>Accounts Receivable code.</summary>
+    protected const string AR_ACCOUNT = "1200";
+    /// <summary>Revenue account code.</summary>
+    protected const string REVENUE_ACCOUNT = "4000";
+    /// <summary>VAT Output account code.</summary>
+    protected const string VAT_OUTPUT_ACCOUNT = "2300";
+    /// <summary>Cash/Bank account code.</summary>
+    protected const string CASH_ACCOUNT = "1100";
+    /// <summary>Operating Expenses code.</summary>
+    protected const string EXPENSE_ACCOUNT = "5000";
+    /// <summary>VAT Input account code.</summary>
+    protected const string VAT_INPUT_ACCOUNT = "1300";
+    /// <summary>Accounts Payable code.</summary>
+    protected const string AP_ACCOUNT = "2100";
+    /// <summary>Inventory account code.</summary>
+    protected const string INVENTORY_ACCOUNT = "1400";
+    /// <summary>Payroll Expense code.</summary>
+    protected const string PAYROLL_EXPENSE_ACCOUNT = "5100";
+
+    private readonly AccountingDbContext _context;
+    private readonly IMemoryCache _memoryCache;
+
+    /// <summary>
+    /// Initializes a new instance of the EventProcessingServiceBase class.
+    /// </summary>
+    protected EventProcessingServiceBase(AccountingDbContext context, IMemoryCache memoryCache)
+    {
+        _context = context;
+        _memoryCache = memoryCache;
     }
 
     /// <summary>
-    /// Processes a payroll processed event.
+    /// Retrieves an active account by its number.
     /// </summary>
-    /// <param name="event">The payroll processed event.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The ID of the created journal entry.</returns>
-    public async Task<Guid> ProcessPayrollProcessedAsync(PayrollProcessedEvent @event, CancellationToken cancellationToken = default)
-    {
-        using var activity = Activity.Current?.Source.StartActivity("ProcessPayrollProcessed");
-        activity?.SetTag("event.id", @event.EventId);
-
-        if (await _idempotencyService.IsEventProcessedAsync(@event.EventId.ToString(), cancellationToken))
-        {
-            var existingId = await _idempotencyService.GetJournalEntryIdAsync(@event.EventId.ToString(), cancellationToken);
-            return existingId ?? throw new InvalidOperationException("Event was processed but journal entry ID not found");
-        }
-
-        // Use execution strategy for retries
-        var strategy = _context.Database.CreateExecutionStrategy();
-        return await strategy.ExecuteAsync(async () =>
-        {
-            using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
-
-            try
-            {
-                var period = await _periodService.GetOrCreatePeriodAsync(@event.PaymentDate, cancellationToken);
-
-                await _periodService.ValidatePeriodForPostingAsync(period.Id, isAdjustingEntry: false, cancellationToken);
-
-                var payrollExpenseAccount = await GetAccountByCodeAsync(PAYROLL_EXPENSE_ACCOUNT, cancellationToken);
-
-                var journalEntry = new JournalEntry
-                {
-                    Id = Guid.NewGuid(),
-                    PeriodId = period.Id,
-                    EntryNumber = await _periodService.GenerateEntryNumberAsync(period.Id, cancellationToken),
-                    EntryDate = @event.PaymentDate.ToUniversalTime(),
-                    Description = $"Payroll {@event.PayrollNumber} - Period {@event.PayPeriodStart:yyyy-MM-dd} to {@event.PayPeriodEnd:yyyy-MM-dd}",
-                    Status = EntryStatus.Posted,
-                    SourceSystem = "Payroll",
-                    SourceEventId = @event.EventId.ToString(),
-                    CreatedBy = Guid.Empty,
-                    PostedAt = DateTime.UtcNow,
-                    PostedBy = Guid.Empty
-                };
-
-                var lines = new List<JournalEntryLine>
-            {
-                // Debit: Payroll Expense (Gross Pay)
-                new JournalEntryLine
-                {
-                    Id = Guid.NewGuid(),
-                    JournalEntryId = journalEntry.Id,
-                    AccountId = payrollExpenseAccount.Id,
-                    LineSequence = 1,
-                    Description = $"Payroll expense {@event.PayrollNumber}",
-                    DebitAmount = @event.GrossPay,
-                    CreditAmount = 0,
-                    ReferenceType = "Payroll",
-                    ReferenceId = @event.PayrollId.ToString()
-                }
-            };
-
-                // Credit: Various payable accounts for deductions
-                int lineSeq = 2;
-                foreach (var deduction in @event.Deductions)
-                {
-                    var accountCode = deduction.DeductionType.ToLower() switch
-                    {
-                        "tax" => TAX_PAYABLE_ACCOUNT,
-                        "insurance" => INSURANCE_PAYABLE_ACCOUNT,
-                        "pension" => PENSION_PAYABLE_ACCOUNT,
-                        _ => TAX_PAYABLE_ACCOUNT
-                    };
-
-                    var account = await GetAccountByCodeAsync(accountCode, cancellationToken);
-
-                    lines.Add(new JournalEntryLine
-                    {
-                        Id = Guid.NewGuid(),
-                        JournalEntryId = journalEntry.Id,
-                        AccountId = account.Id,
-                        LineSequence = lineSeq++,
-                        Description = $"{deduction.DeductionType} deduction",
-                        DebitAmount = 0,
-                        CreditAmount = deduction.Amount,
-                        ReferenceType = "Payroll",
-                        ReferenceId = @event.PayrollId.ToString()
-                    });
-                }
-
-                // Credit: Cash (Net Pay)
-                var cashAccount = await GetAccountByCodeAsync(CASH_ACCOUNT, cancellationToken);
-                lines.Add(new JournalEntryLine
-                {
-                    Id = Guid.NewGuid(),
-                    JournalEntryId = journalEntry.Id,
-                    AccountId = cashAccount.Id,
-                    LineSequence = lineSeq,
-                    Description = $"Net pay disbursement {@event.PayrollNumber}",
-                    DebitAmount = 0,
-                    CreditAmount = @event.NetPay,
-                    ReferenceType = "Payroll",
-                    ReferenceId = @event.PayrollId.ToString()
-                });
-
-                journalEntry.Lines = lines;
-                journalEntry.TotalDebit = lines.Sum(l => l.DebitAmount);
-                journalEntry.TotalCredit = lines.Sum(l => l.CreditAmount);
-
-                if (journalEntry.TotalDebit != journalEntry.TotalCredit)
-                {
-                    throw new InvalidOperationException("Journal entry is not balanced");
-                }
-
-                var subledgerTx = new SubledgerTransaction
-                {
-                    Id = Guid.NewGuid(),
-                    JournalEntryId = journalEntry.Id,
-                    SourceSystem = "Payroll",
-                    TransactionType = "Payroll",
-                    SourceTransactionId = @event.PayrollId.ToString(),
-                    TransactionDate = @event.PaymentDate.ToUniversalTime(),
-                    Amount = @event.GrossPay
-                };
-
-                _context.JournalEntries.Add(journalEntry);
-                _context.SubledgerTransactions.Add(subledgerTx);
-                _context.ProcessedEventRegistry.Add(new ProcessedEventRegistry
-                {
-                    Id = Guid.NewGuid(),
-                    EventId = @event.EventId.ToString(),
-                    JournalEntryId = journalEntry.Id,
-                    ProcessedAt = DateTime.UtcNow
-                });
-
-                await _context.SaveChangesAsync(cancellationToken);
-
-                await _auditService.RecordAuditAsync(
-                    "JournalEntry",
-                    journalEntry.Id.ToString(),
-                    "Posted",
-                    null,
-                    journalEntry,
-                    "system",
-                    Activity.Current?.Id,
-                    null,
-                    cancellationToken);
-
-                await transaction.CommitAsync(cancellationToken);
-
-                // Mark event as processed in Redis only after successful DB commit
-                await _idempotencyService.MarkEventAsProcessedAsync(@event.EventId.ToString(), journalEntry.Id, cancellationToken);
-
-                // Publish TransactionPostedEvent after commit
-                await _publishEndpoint.Publish(new TransactionPostedEvent
-                {
-                    JournalEntryId = journalEntry.Id,
-                    EntryNumber = journalEntry.EntryNumber,
-                    EntryDate = journalEntry.EntryDate,
-                    Description = journalEntry.Description,
-                    TotalAmount = journalEntry.TotalDebit,
-                    SourceSystem = journalEntry.SourceSystem,
-                    PostedAt = journalEntry.PostedAt ?? DateTime.UtcNow
-                }, cancellationToken);
-
-                activity?.SetTag("journal.entry.id", journalEntry.Id);
-                _logger.LogInformation("Successfully processed PayrollProcessed event {EventId}", @event.EventId);
-
-                return journalEntry.Id;
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                _logger.LogError(ex, "Failed to process PayrollProcessed event {EventId}", @event.EventId);
-                throw;
-            }
-        });
-    }
-
-    private async Task<ChartOfAccount> GetAccountByCodeAsync(string accountCode, CancellationToken cancellationToken)
+    protected async Task<ChartOfAccount> GetAccountByCodeAsync(string accountCode, CancellationToken ct)
     {
         return await _memoryCache.GetOrCreateAsync($"account_{accountCode}", async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
-            entry.Size = 1;
-            return await _context.ChartOfAccounts
-                .FirstOrDefaultAsync(a => a.AccountNumber == accountCode && a.IsActive, cancellationToken);
-        }) ?? throw new InvalidOperationException($"Account with code {accountCode} not found or is inactive");
+            return await _context.ChartOfAccounts.FirstOrDefaultAsync(a => a.AccountNumber == accountCode && a.IsActive, ct);
+        }) ?? throw new InvalidOperationException($"Account {accountCode} not found");
     }
 }

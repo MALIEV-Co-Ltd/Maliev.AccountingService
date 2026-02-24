@@ -1,4 +1,4 @@
-using Maliev.AccountingService.Api.Events;
+using Maliev.MessagingContracts.Contracts.Accounting;
 using Maliev.AccountingService.Api.Services;
 using MassTransit;
 using System.Diagnostics;
@@ -34,13 +34,13 @@ public class InventoryMovementConsumer : IConsumer<InventoryMovementEvent>
     public async Task Consume(ConsumeContext<InventoryMovementEvent> context)
     {
         using var activity = Activity.Current?.Source.StartActivity("ConsumeInventoryMovement");
-        activity?.SetTag("event.id", context.Message.EventId);
-        activity?.SetTag("movement.id", context.Message.MovementId);
+        activity?.SetTag("event.id", context.Message.MessageId);
+        activity?.SetTag("movement.id", context.Message.Payload.MovementId);
 
         _logger.LogInformation(
             "Received InventoryMovement event {EventId} for movement {MovementId}",
-            context.Message.EventId,
-            context.Message.MovementId);
+            context.Message.MessageId,
+            context.Message.Payload.MovementId);
 
         try
         {
@@ -52,7 +52,7 @@ public class InventoryMovementConsumer : IConsumer<InventoryMovementEvent>
 
             _logger.LogInformation(
                 "Successfully processed InventoryMovement event {EventId}, created journal entry {JournalEntryId}",
-                context.Message.EventId,
+                context.Message.MessageId,
                 journalEntryId);
         }
         catch (Exception ex)
@@ -60,7 +60,7 @@ public class InventoryMovementConsumer : IConsumer<InventoryMovementEvent>
             _logger.LogError(
                 ex,
                 "Failed to process InventoryMovement event {EventId}",
-                context.Message.EventId);
+                context.Message.MessageId);
             throw;
         }
     }

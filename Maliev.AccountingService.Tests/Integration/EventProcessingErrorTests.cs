@@ -1,5 +1,6 @@
 using Maliev.AccountingService.Api.Consumers;
-using Maliev.AccountingService.Api.Events;
+using Maliev.MessagingContracts.Contracts.Accounting;
+using Maliev.MessagingContracts.Generated;
 using Maliev.AccountingService.Api.Services;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
@@ -19,14 +20,28 @@ public class EventProcessingErrorTests : BaseIntegrationTest
         await CleanDatabaseAsync(); // Ensure no accounts exist
 
         // Arrange
-        var @event = new InventoryMovementEvent
-        {
-            EventId = Guid.NewGuid().ToString(),
-            MovementId = Guid.NewGuid(),
-            MovementType = "Purchase",
-            TotalCost = 100m,
-            MovementDate = DateTime.UtcNow
-        };
+        var messageId = Guid.NewGuid();
+        var @event = new InventoryMovementEvent(
+            MessageId: messageId,
+            MessageName: nameof(InventoryMovementEvent),
+            MessageType: MessageType.Event,
+            MessageVersion: "1.0.0",
+            PublishedBy: "Test",
+            ConsumedBy: Array.Empty<string>(),
+            CorrelationId: Guid.NewGuid(),
+            CausationId: null,
+            OccurredAtUtc: DateTimeOffset.UtcNow,
+            IsPublic: false,
+            Payload: new InventoryMovementEventPayload
+            {
+                MovementId = Guid.NewGuid(),
+                MovementNumber = "MOV-001",
+                MovementType = "Purchase",
+                TotalCost = 100.0,
+                MovementDate = DateTimeOffset.UtcNow,
+                ProductName = "Test Product"
+            }
+        );
 
         // Act
         await Factory.PublishEventAsync(@event);
@@ -36,7 +51,7 @@ public class EventProcessingErrorTests : BaseIntegrationTest
 
         // Assert
         var dbContext = Factory.GetDbContext();
-        var entryExists = await dbContext.JournalEntries.AnyAsync(e => e.SourceEventId == @event.EventId.ToString());
+        var entryExists = await dbContext.JournalEntries.AnyAsync(e => e.SourceEventId == messageId.ToString());
         Assert.False(entryExists);
     }
 }

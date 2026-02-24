@@ -1,4 +1,5 @@
-using Maliev.AccountingService.Api.Events;
+using Maliev.MessagingContracts.Contracts.Accounting;
+using Maliev.MessagingContracts.Contracts.Invoices;
 using Maliev.AccountingService.Api.Services;
 using MassTransit;
 using System.Diagnostics;
@@ -34,13 +35,13 @@ public class InvoiceCreatedConsumer : IConsumer<InvoiceCreatedEvent>
     public async Task Consume(ConsumeContext<InvoiceCreatedEvent> context)
     {
         using var activity = Activity.Current?.Source.StartActivity("ConsumeInvoiceCreated");
-        activity?.SetTag("event.id", context.Message.EventId);
-        activity?.SetTag("invoice.id", context.Message.InvoiceId);
+        activity?.SetTag("event.id", context.Message.MessageId);
+        activity?.SetTag("invoice.id", context.Message.Payload.InvoiceId);
 
         _logger.LogInformation(
             "Received InvoiceCreated event {EventId} for invoice {InvoiceId}",
-            context.Message.EventId,
-            context.Message.InvoiceId);
+            context.Message.MessageId,
+            context.Message.Payload.InvoiceId);
 
         try
         {
@@ -52,7 +53,7 @@ public class InvoiceCreatedConsumer : IConsumer<InvoiceCreatedEvent>
 
             _logger.LogInformation(
                 "Successfully processed InvoiceCreated event {EventId}, created journal entry {JournalEntryId}",
-                context.Message.EventId,
+                context.Message.MessageId,
                 journalEntryId);
         }
         catch (Exception ex)
@@ -60,7 +61,7 @@ public class InvoiceCreatedConsumer : IConsumer<InvoiceCreatedEvent>
             _logger.LogError(
                 ex,
                 "Failed to process InvoiceCreated event {EventId}",
-                context.Message.EventId);
+                context.Message.MessageId);
 
             throw; // Let MassTransit handle retry
         }
