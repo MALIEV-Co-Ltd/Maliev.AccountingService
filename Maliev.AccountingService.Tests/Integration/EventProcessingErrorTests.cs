@@ -1,6 +1,6 @@
 using Maliev.AccountingService.Api.Consumers;
 using Maliev.MessagingContracts.Contracts.Accounting;
-using Maliev.MessagingContracts.Generated;
+using Maliev.MessagingContracts;
 using Maliev.AccountingService.Api.Services;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;

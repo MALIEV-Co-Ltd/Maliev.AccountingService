@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Maliev.MessagingContracts.Contracts.Accounting;
 using Maliev.MessagingContracts.Contracts.Invoices;
-using Maliev.MessagingContracts.Generated;
+using Maliev.MessagingContracts;
 using Maliev.AccountingService.Data.Models;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
