@@ -1,5 +1,5 @@
 using Asp.Versioning;
-using Maliev.AccountingService.Data.Data;
+using Maliev.AccountingService.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 

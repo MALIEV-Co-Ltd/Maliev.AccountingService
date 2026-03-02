@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
-using Maliev.AccountingService.Data.Data;
+using Maliev.AccountingService.Infrastructure.Data;
 using Xunit;
 
 namespace Maliev.AccountingService.Tests.Integration;

@@ -1,5 +1,5 @@
 using Maliev.AccountingService.Api.Services;
-using Maliev.AccountingService.Data.Data;
+using Maliev.AccountingService.Infrastructure.Data;
 using Maliev.AccountingService.Tests.Testing;
 using MassTransit;
 using Microsoft.Extensions.DependencyInjection;

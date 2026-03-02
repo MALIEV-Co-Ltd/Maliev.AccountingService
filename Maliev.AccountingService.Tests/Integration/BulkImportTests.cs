@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using Maliev.AccountingService.Api.Models;
-using Maliev.AccountingService.Data.Models;
+using Maliev.AccountingService.Infrastructure.Models;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 

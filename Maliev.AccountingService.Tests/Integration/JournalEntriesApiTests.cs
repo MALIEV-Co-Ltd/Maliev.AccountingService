@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Maliev.AccountingService.Api.DTOs.Requests;
 using Maliev.AccountingService.Api.DTOs.Responses;
-using Maliev.AccountingService.Data.Models;
+using Maliev.AccountingService.Infrastructure.Models;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 

@@ -1,6 +1,6 @@
 using Maliev.AccountingService.Api.DTOs.Responses;
-using Maliev.AccountingService.Data.Data;
-using Maliev.AccountingService.Data.Models;
+using Maliev.AccountingService.Infrastructure.Data;
+using Maliev.AccountingService.Infrastructure.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Maliev.AccountingService.Api.Services;

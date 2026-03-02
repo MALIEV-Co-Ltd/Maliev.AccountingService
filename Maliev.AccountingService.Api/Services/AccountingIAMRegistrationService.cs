@@ -1,4 +1,4 @@
-using Maliev.AccountingService.Data.Data;
+using Maliev.AccountingService.Infrastructure.Data;
 using Maliev.Aspire.ServiceDefaults.IAM;
 
 namespace Maliev.AccountingService.Api.Services;

@@ -1,6 +1,6 @@
 using System.Net;
 using Maliev.AccountingService.Api.Services;
-using Maliev.AccountingService.Data.Models;
+using Maliev.AccountingService.Infrastructure.Models;
 using Xunit;
 
 namespace Maliev.AccountingService.Tests.Integration;

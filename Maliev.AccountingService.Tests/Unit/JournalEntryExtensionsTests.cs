@@ -1,6 +1,6 @@
 using Maliev.AccountingService.Api.DTOs.Requests;
 using Maliev.AccountingService.Api.Extensions;
-using Maliev.AccountingService.Data.Models;
+using Maliev.AccountingService.Infrastructure.Models;
 using Xunit;
 
 namespace Maliev.AccountingService.Tests.Unit;

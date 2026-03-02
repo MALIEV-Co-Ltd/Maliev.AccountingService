@@ -1,4 +1,4 @@
-using Maliev.AccountingService.Data.Models;
+using Maliev.AccountingService.Infrastructure.Models;
 
 namespace Maliev.AccountingService.Api.Services;
 

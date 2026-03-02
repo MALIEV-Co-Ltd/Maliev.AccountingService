@@ -1,4 +1,4 @@
-using Maliev.AccountingService.Data.Data;
+using Maliev.AccountingService.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 

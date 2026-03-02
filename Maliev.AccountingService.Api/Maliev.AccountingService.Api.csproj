@@ -28,7 +28,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Maliev.AccountingService.Data\Maliev.AccountingService.Data.csproj" />
+    <ProjectReference Include="..\Maliev.AccountingService.Application\Maliev.AccountingService.Application.csproj" />
+    <ProjectReference Include="..\Maliev.AccountingService.Infrastructure\Maliev.AccountingService.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,6 +1,6 @@
 using Maliev.AccountingService.Api.DTOs.Requests;
 using Maliev.AccountingService.Api.DTOs.Responses;
-using Maliev.AccountingService.Data.Models;
+using Maliev.AccountingService.Infrastructure.Models;
 
 namespace Maliev.AccountingService.Api.Extensions;
 
