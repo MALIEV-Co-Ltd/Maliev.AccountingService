@@ -123,6 +123,7 @@ public class ChartOfAccountExtensionsTests
     {
         // Arrange
         var parentId = Guid.NewGuid();
+        var childId = Guid.NewGuid();
         var parent = new ChartOfAccount
         {
             Id = parentId,
@@ -130,7 +131,20 @@ public class ChartOfAccountExtensionsTests
             Name = "Cash",
             Type = AccountType.Asset,
             Category = "Current Assets",
-            IsActive = true
+            IsActive = true,
+            ChildAccounts = new List<ChartOfAccount>
+            {
+                new ChartOfAccount
+                {
+                    Id = childId,
+                    AccountNumber = "1000-001",
+                    Name = "Petty Cash",
+                    Type = AccountType.Asset,
+                    Category = "Current Assets",
+                    IsActive = true,
+                    ParentAccountId = parentId
+                }
+            }
         };
 
         // Act
@@ -138,6 +152,9 @@ public class ChartOfAccountExtensionsTests
 
         // Assert
         Assert.NotNull(response);
-        Assert.Equal(parent.Id, response.Id);
+        Assert.NotNull(response.Children);
+        var childResponse = Assert.Single(response.Children);
+        Assert.Equal(childId, childResponse.Id);
+        Assert.Equal("Petty Cash", childResponse.Name);
     }
 }

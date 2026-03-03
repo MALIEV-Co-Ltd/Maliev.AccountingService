@@ -77,7 +77,7 @@ public class BulkImportController : ControllerBase
     /// <response code="400">Invalid file or file format</response>
     /// <response code="401">Unauthorized</response>
     [HttpPost("opening-balances")]
-    [RequirePermission(AccountingPermissions.AccountsCreate)]
+    [RequirePermission(AccountingPermissions.JournalEntriesCreate)]
     [ProducesResponseType(typeof(Models.BulkImportResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
