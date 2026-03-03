@@ -1,5 +1,7 @@
 using Asp.Versioning;
 using Maliev.AccountingService.Api.Services;
+using Maliev.AccountingService.Infrastructure.Data;
+using Maliev.Aspire.ServiceDefaults.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,7 +13,6 @@ namespace Maliev.AccountingService.Api.Controllers;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("accounting/v{version:apiVersion}/bulk-import")]
-[Authorize] // Require authentication for all bulk import operations
 public class BulkImportController : ControllerBase
 {
     private readonly IBulkImportService _bulkImportService;
@@ -38,6 +39,7 @@ public class BulkImportController : ControllerBase
     /// <response code="400">Invalid file or file format</response>
     /// <response code="401">Unauthorized</response>
     [HttpPost("chart-of-accounts")]
+    [RequirePermission(AccountingPermissions.AccountsCreate)]
     [ProducesResponseType(typeof(Models.BulkImportResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -75,6 +77,7 @@ public class BulkImportController : ControllerBase
     /// <response code="400">Invalid file or file format</response>
     /// <response code="401">Unauthorized</response>
     [HttpPost("opening-balances")]
+    [RequirePermission(AccountingPermissions.AccountsCreate)]
     [ProducesResponseType(typeof(Models.BulkImportResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
