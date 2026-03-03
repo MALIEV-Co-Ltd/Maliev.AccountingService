@@ -1,6 +1,6 @@
+using Maliev.MessagingContracts;
 using Maliev.MessagingContracts.Contracts.Accounting;
 using Maliev.MessagingContracts.Contracts.Invoices;
-using Maliev.MessagingContracts;
 using Maliev.AccountingService.Api.Metrics;
 using Maliev.AccountingService.Infrastructure.Data;
 using Maliev.AccountingService.Infrastructure.Models;
