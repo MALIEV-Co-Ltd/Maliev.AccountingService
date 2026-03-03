@@ -156,6 +156,9 @@ public class EventProcessingService : EventProcessingServiceBase, IEventProcessi
                     new() { Id = Guid.NewGuid(), JournalEntryId = journalEntry.Id, AccountId = arAccount.Id, LineSequence = 2, CreditAmount = (decimal)@event.Payload.Amount, ReferenceType = "Payment", ReferenceId = @event.Payload.PaymentId.ToString(), CustomerId = @event.Payload.CustomerId ?? Guid.Empty }
                 };
 
+                journalEntry.TotalDebit = journalEntry.Lines.Sum(l => l.DebitAmount);
+                journalEntry.TotalCredit = journalEntry.Lines.Sum(l => l.CreditAmount);
+
                 _context.JournalEntries.Add(journalEntry);
                 await _context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
@@ -201,6 +204,9 @@ public class EventProcessingService : EventProcessingServiceBase, IEventProcessi
                     new() { Id = Guid.NewGuid(), JournalEntryId = journalEntry.Id, AccountId = expenseAccount.Id, LineSequence = 1, DebitAmount = (decimal)@event.Payload.TotalAmount, ReferenceType = "SupplierInvoice", ReferenceId = @event.Payload.SupplierInvoiceId.ToString(), SupplierId = @event.Payload.SupplierId },
                     new() { Id = Guid.NewGuid(), JournalEntryId = journalEntry.Id, AccountId = apAccount.Id, LineSequence = 2, CreditAmount = (decimal)@event.Payload.TotalAmount, ReferenceType = "SupplierInvoice", ReferenceId = @event.Payload.SupplierInvoiceId.ToString(), SupplierId = @event.Payload.SupplierId }
                 };
+
+                journalEntry.TotalDebit = journalEntry.Lines.Sum(l => l.DebitAmount);
+                journalEntry.TotalCredit = journalEntry.Lines.Sum(l => l.CreditAmount);
 
                 _context.JournalEntries.Add(journalEntry);
                 await _context.SaveChangesAsync(cancellationToken);
@@ -248,6 +254,9 @@ public class EventProcessingService : EventProcessingServiceBase, IEventProcessi
                     new() { Id = Guid.NewGuid(), JournalEntryId = journalEntry.Id, AccountId = apAccount.Id, LineSequence = 2, CreditAmount = (decimal)@event.Payload.TotalCost, ReferenceType = "Inventory", ReferenceId = @event.Payload.MovementId.ToString(), SupplierId = @event.Payload.SupplierId }
                 };
 
+                journalEntry.TotalDebit = journalEntry.Lines.Sum(l => l.DebitAmount);
+                journalEntry.TotalCredit = journalEntry.Lines.Sum(l => l.CreditAmount);
+
                 _context.JournalEntries.Add(journalEntry);
                 await _context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
@@ -293,6 +302,9 @@ public class EventProcessingService : EventProcessingServiceBase, IEventProcessi
                     new() { Id = Guid.NewGuid(), JournalEntryId = journalEntry.Id, AccountId = payrollAccount.Id, LineSequence = 1, DebitAmount = (decimal)@event.Payload.GrossPay, ReferenceType = "Payroll", ReferenceId = @event.Payload.PayrollId.ToString() },
                     new() { Id = Guid.NewGuid(), JournalEntryId = journalEntry.Id, AccountId = cashAccount.Id, LineSequence = 2, CreditAmount = (decimal)@event.Payload.NetPay, ReferenceType = "Payroll", ReferenceId = @event.Payload.PayrollId.ToString() }
                 };
+
+                journalEntry.TotalDebit = journalEntry.Lines.Sum(l => l.DebitAmount);
+                journalEntry.TotalCredit = journalEntry.Lines.Sum(l => l.CreditAmount);
 
                 _context.JournalEntries.Add(journalEntry);
                 await _context.SaveChangesAsync(cancellationToken);
@@ -375,6 +387,7 @@ public abstract class EventProcessingServiceBase
         return await _memoryCache.GetOrCreateAsync($"account_{accountCode}", async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            entry.Size = 1;
             return await _context.ChartOfAccounts.FirstOrDefaultAsync(a => a.AccountNumber == accountCode && a.IsActive, ct);
         }) ?? throw new InvalidOperationException($"Account {accountCode} not found");
     }
