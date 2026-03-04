@@ -40,5 +40,6 @@ public abstract class BaseIntegrationTest : IClassFixture<IntegrationTestFixture
     protected async Task CleanDatabaseAsync()
     {
         await Factory.CleanDatabaseAsync();
+        Factory.ClearCache();
     }
 }

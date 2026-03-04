@@ -46,13 +46,16 @@ public class EventProcessingTests : BaseIntegrationTest
                 InvoiceNumber = "INV-2025-001",
                 CustomerId = Guid.NewGuid(),
                 TotalAmount = 1150.0,
+                Currency = "THB",
                 CreatedAt = DateTimeOffset.UtcNow
             }
         );
 
         // Act
         await Factory.PublishEventAsync(invoiceEvent);
-        await Task.Delay(3000); // Allow time for async processing
+        
+        // Wait for async processing - give more time for RabbitMQ to deliver and process
+        await Task.Delay(5000);
 
         // Verify journal entry was created - get fresh context
         var dbContext2 = Factory.GetDbContext();
@@ -97,13 +100,14 @@ public class EventProcessingTests : BaseIntegrationTest
                 PaymentDate = DateTimeOffset.UtcNow,
                 Amount = 1150.0,
                 PaymentMethod = "Bank Transfer",
+                Currency = "THB",
                 CustomerId = Guid.NewGuid()
             }
         );
 
         // Act
         await Factory.PublishEventAsync(paymentEvent);
-        await Task.Delay(3000);
+        await Task.Delay(5000);
 
         var dbContext = Factory.GetDbContext();
         var journalEntry = await dbContext.JournalEntries
@@ -144,13 +148,14 @@ public class EventProcessingTests : BaseIntegrationTest
                 InvoiceDate = DateTimeOffset.UtcNow,
                 SupplierId = Guid.NewGuid(),
                 SupplierName = "Test Supplier",
-                TotalAmount = 575.0
+                TotalAmount = 575.0,
+                Currency = "THB"
             }
         );
 
         // Act
         await Factory.PublishEventAsync(supplierEvent);
-        await Task.Delay(3000);
+        await Task.Delay(5000);
 
         var dbContext = Factory.GetDbContext();
         var journalEntry = await dbContext.JournalEntries
@@ -199,7 +204,7 @@ public class EventProcessingTests : BaseIntegrationTest
 
         // Act
         await Factory.PublishEventAsync(inventoryEvent);
-        await Task.Delay(3000);
+        await Task.Delay(5000);
 
         var dbContext = Factory.GetDbContext();
         var journalEntry = await dbContext.JournalEntries
@@ -246,7 +251,7 @@ public class EventProcessingTests : BaseIntegrationTest
 
         // Act
         await Factory.PublishEventAsync(payrollEvent);
-        await Task.Delay(3000);
+        await Task.Delay(5000);
 
         var dbContext = Factory.GetDbContext();
         var journalEntry = await dbContext.JournalEntries
