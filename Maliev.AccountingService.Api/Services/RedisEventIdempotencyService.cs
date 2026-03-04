@@ -87,10 +87,16 @@ public class RedisEventIdempotencyService : IEventIdempotencyService
 
     private static string GetKey(string eventId) => $"{KeyPrefix}{eventId}";
 
-    internal class ProcessedEventData
+    /// <summary>
+    /// Data class for storing processed event information in cache.
+    /// </summary>
+    public class ProcessedEventData
     {
+        /// <summary>Gets or sets the event identifier.</summary>
         public string EventId { get; set; } = string.Empty;
+        /// <summary>Gets or sets the journal entry identifier.</summary>
         public Guid JournalEntryId { get; set; }
+        /// <summary>Gets or sets the processed timestamp.</summary>
         public DateTime ProcessedAt { get; set; }
     }
 }
