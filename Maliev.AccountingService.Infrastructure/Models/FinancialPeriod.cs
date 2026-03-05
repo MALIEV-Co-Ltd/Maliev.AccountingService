@@ -26,9 +26,6 @@ public class FinancialPeriod
 
     public Guid? ClosedBy { get; set; }
 
-    [Timestamp]
-    public byte[]? RowVersion { get; set; }
-
     // Navigation properties
     public FiscalYear FiscalYear { get; set; } = null!;
     public ICollection<JournalEntry> JournalEntries { get; set; } = new List<JournalEntry>();

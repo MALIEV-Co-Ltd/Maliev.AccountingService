@@ -45,9 +45,6 @@ public class JournalEntry
 
     public Guid? PostedBy { get; set; }
 
-    [Timestamp]
-    public byte[]? RowVersion { get; set; }
-
     // Navigation properties
     public FinancialPeriod Period { get; set; } = null!;
     public ICollection<JournalEntryLine> Lines { get; set; } = new List<JournalEntryLine>();
