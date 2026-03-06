@@ -258,12 +258,6 @@ namespace Maliev.AccountingService.Infrastructure.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("status");
 
-                    b.Property<uint>("xmin")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
                     b.HasKey("Id")
                         .HasName("pk_financial_periods");
 
@@ -393,12 +387,6 @@ namespace Maliev.AccountingService.Infrastructure.Migrations
                     b.Property<decimal>("TotalDebit")
                         .HasColumnType("decimal(18,2)")
                         .HasColumnName("total_debit");
-
-                    b.Property<uint>("xmin")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
 
                     b.HasKey("Id")
                         .HasName("pk_journal_entries");

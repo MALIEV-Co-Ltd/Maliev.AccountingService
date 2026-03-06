@@ -74,8 +74,6 @@ public class AccountingDbContext : DbContext
                 .WithMany(e => e.FinancialPeriods)
                 .HasForeignKey(e => e.FiscalYearId)
                 .OnDelete(DeleteBehavior.Restrict);
-
-            entity.Property<uint>("xmin").HasColumnType("xid").IsRowVersion();
         });
 
         // Configure JournalEntry
@@ -97,8 +95,6 @@ public class AccountingDbContext : DbContext
                 .WithOne(e => e.JournalEntry)
                 .HasForeignKey<AdjustingEntryApproval>(e => e.JournalEntryId)
                 .OnDelete(DeleteBehavior.Cascade);
-
-            entity.Property<uint>("xmin").HasColumnType("xid").IsRowVersion();
         });
 
         // Configure JournalEntryLine

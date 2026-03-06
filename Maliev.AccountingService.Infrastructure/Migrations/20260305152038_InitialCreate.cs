@@ -132,8 +132,7 @@ namespace Maliev.AccountingService.Infrastructure.Migrations
                     end_date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     status = table.Column<int>(type: "integer", nullable: false),
                     closed_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    closed_by = table.Column<Guid>(type: "uuid", nullable: true),
-                    xmin = table.Column<uint>(type: "xid", rowVersion: true, nullable: false)
+                    closed_by = table.Column<Guid>(type: "uuid", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -188,8 +187,7 @@ namespace Maliev.AccountingService.Infrastructure.Migrations
                     created_by = table.Column<Guid>(type: "uuid", nullable: false),
                     posted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     posted_by = table.Column<Guid>(type: "uuid", nullable: true),
-                    financial_period_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    xmin = table.Column<uint>(type: "xid", rowVersion: true, nullable: false)
+                    financial_period_id = table.Column<Guid>(type: "uuid", nullable: true)
                 },
                 constraints: table =>
                 {
