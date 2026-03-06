@@ -43,6 +43,7 @@ This document provides essential instructions for AI agents working on the Malie
 - ❌ **AutoMapper**: Use manual mapping.
 - ❌ **FluentValidation**: Use Data Annotations (`[Required]`, `[EmailAddress]`).
 - ❌ **FluentAssertions**: Use standard xUnit `Assert` methods.
+- ❌ **Microsoft.EntityFrameworkCore.Design**: Must only be in the Infrastructure project (where migrations reside). Do NOT add to API or other projects.
 
 ### Logging
 - Use `[LoggerMessage]` source generator for high-performance logging.
