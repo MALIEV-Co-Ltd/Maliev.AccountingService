@@ -17,8 +17,8 @@ This document provides essential instructions for AI agents working on the Malie
 | **Run App** | `dotnet run --project Maliev.AccountingService.Api` |
 | **Run All Tests** | `dotnet test --verbosity normal` |
 | **Run Single Test** | `dotnet test --filter "FullyQualifiedName~Namespace.ClassName.MethodName"` |
-| **DB Migration** | `dotnet ef database update --project Maliev.AccountingService.Infrastructure --startup-project Maliev.AccountingService.Api` |
-| **Add Migration** | `dotnet ef migrations add <Name> --project Maliev.AccountingService.Infrastructure --startup-project Maliev.AccountingService.Api` |
+| **DB Migration** | `dotnet ef database update --project Maliev.AccountingService.Infrastructure --startup-project Maliev.AccountingService.Infrastructure` |
+| **Add Migration** | `dotnet ef migrations add <Name> --project Maliev.AccountingService.Infrastructure --startup-project Maliev.AccountingService.Infrastructure` |
 
 **Important**:
 - **TreatWarningsAsErrors** is enabled. Code must be warning-free.
@@ -118,9 +118,9 @@ public class InvoiceServiceTests : IClassFixture<IntegrationTestFixture>
 ### EF Core Design Package
 - ❌ `Microsoft.EntityFrameworkCore.Design` MUST NOT be in Api projects
 - ✅ It belongs ONLY in the Infrastructure (or Data) project where migrations live
-- Migration commands must target Infrastructure, not Api:
+- Migration commands must target Infrastructure as both project and startup-project (since EF Core Design package is in Infrastructure):
   ```
-  dotnet ef migrations add <Name> --project Maliev.<Domain>Service.Infrastructure --startup-project ../Maliev.<Domain>Service.Api
+  dotnet ef migrations add <Name> --project Maliev.<Domain>Service.Infrastructure --startup-project Maliev.<Domain>Service.Infrastructure
   ```
 
 ### PostgreSQL xmin Concurrency — Mandatory Pattern
