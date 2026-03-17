@@ -12,7 +12,7 @@ namespace Maliev.AccountingService.Api.Controllers;
 /// Controller for managing financial periods and fiscal years
 /// </summary>
 [ApiController]
-[ApiVersion("1.0")]
+[ApiVersion("1")]
 [Route("accounting/v{version:apiVersion}/periods")]
 [Authorize]
 public class PeriodsController : ControllerBase

@@ -11,7 +11,7 @@ namespace Maliev.AccountingService.Api.Controllers;
 /// Controller for generating various financial reports
 /// </summary>
 [ApiController]
-[ApiVersion("1.0")]
+[ApiVersion("1")]
 [Route("accounting/v{version:apiVersion}/reports")]
 [Authorize]
 public class ReportsController : ControllerBase

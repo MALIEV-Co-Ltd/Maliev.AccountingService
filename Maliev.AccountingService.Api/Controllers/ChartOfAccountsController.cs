@@ -13,7 +13,7 @@ namespace Maliev.AccountingService.Api.Controllers;
 /// API endpoints for managing the chart of accounts
 /// </summary>
 [ApiController]
-[ApiVersion("1.0")]
+[ApiVersion("1")]
 [Route("accounting/v{version:apiVersion}/chart-of-accounts")]
 [Authorize]
 public sealed class ChartOfAccountsController : ControllerBase

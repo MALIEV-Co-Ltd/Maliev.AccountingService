@@ -17,7 +17,7 @@ namespace Maliev.AccountingService.Api.Controllers;
 /// Controller for managing journal entries
 /// </summary>
 [ApiController]
-[ApiVersion("1.0")]
+[ApiVersion("1")]
 [Route("accounting/v{version:apiVersion}/journal-entries")]
 [Authorize]
 public class JournalEntriesController : ControllerBase

@@ -11,7 +11,7 @@ namespace Maliev.AccountingService.Api.Controllers;
 /// Controller for bulk importing chart of accounts and opening balances
 /// </summary>
 [ApiController]
-[ApiVersion("1.0")]
+[ApiVersion("1")]
 [Route("accounting/v{version:apiVersion}/bulk-import")]
 public class BulkImportController : ControllerBase
 {

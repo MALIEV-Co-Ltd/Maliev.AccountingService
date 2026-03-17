@@ -9,7 +9,7 @@ namespace Maliev.AccountingService.Api.Controllers;
 /// Controller for viewing accounting-related permissions and roles
 /// </summary>
 [ApiController]
-[ApiVersion("1.0")]
+[ApiVersion("1")]
 [Route("accounting/v{version:apiVersion}/permissions")]
 public class PermissionsController : ControllerBase
 {
