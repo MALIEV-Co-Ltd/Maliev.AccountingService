@@ -1,4 +1,4 @@
-using Maliev.AccountingService.Infrastructure.Data;
+using Maliev.AccountingService.Application.Authorization;
 
 namespace Maliev.AccountingService.Tests.Integration;
 

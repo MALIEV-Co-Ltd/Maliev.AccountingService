@@ -1,4 +1,4 @@
-namespace Maliev.AccountingService.Infrastructure.Data;
+namespace Maliev.AccountingService.Application.Authorization;
 
 /// <summary>
 /// Predefined roles for the Accounting Service.
@@ -21,7 +21,7 @@ public static class AccountingPredefinedRoles
     /// </summary>
     public static readonly IReadOnlyList<(string RoleId, string Description, string[] Permissions)> All = new List<(string, string, string[])>
     {
-        (Admin, "Full access to all accounting operations", AccountingPermissions.AllWithDescriptions.Keys.ToArray()),
+        (Admin, "Full access to all accounting operations", AccountingPermissions.All.ToArray()),
 
         (Manager, "General accounting management access", AccountingPermissions.AllWithDescriptions.Keys
             .Where(p => p != AccountingPermissions.PeriodsClose && p != AccountingPermissions.PeriodsReopen).ToArray()),
@@ -33,7 +33,7 @@ public static class AccountingPredefinedRoles
             AccountingPermissions.AccountsRead
         }.Concat(AccountingPermissions.AllWithDescriptions.Keys.Where(p => p.StartsWith("accounting.reports."))).ToArray()),
 
-        (Controller, "Advanced accounting and period management", AccountingPermissions.AllWithDescriptions.Keys.ToArray()),
+        (Controller, "Advanced accounting and period management", AccountingPermissions.All.ToArray()),
 
         (Viewer, "Read-only access to accounting data and reports", AccountingPermissions.AllWithDescriptions.Keys
             .Where(p => p.EndsWith(".read") || p.StartsWith("accounting.reports.")).ToArray())

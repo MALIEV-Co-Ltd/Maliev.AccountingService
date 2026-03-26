@@ -2,7 +2,7 @@ using Asp.Versioning;
 using Maliev.AccountingService.Api.DTOs.Requests;
 using Maliev.AccountingService.Api.DTOs.Responses;
 using Maliev.AccountingService.Api.Services;
-using Maliev.AccountingService.Infrastructure.Data;
+using Maliev.AccountingService.Application.Authorization;
 using Maliev.Aspire.ServiceDefaults.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

@@ -135,7 +135,6 @@ public class BaseIntegrationTestFactory<TProgram, TDbContext> : WebApplicationFa
         Environment.SetEnvironmentVariable("ConnectionStrings__rabbitmq", _rabbitmqContainer!.GetConnectionString());
         Environment.SetEnvironmentVariable("CORS_ALLOWED_ORIGINS", "http://localhost:3000");
         Environment.SetEnvironmentVariable("CORS__AllowedOrigins__0", "http://localhost:3000");
-        Environment.SetEnvironmentVariable("IAM__RegistrationDelaySeconds", "0");
     }
 
     public new async Task DisposeAsync()
@@ -148,7 +147,6 @@ public class BaseIntegrationTestFactory<TProgram, TDbContext> : WebApplicationFa
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", null); // Cleanup
         Environment.SetEnvironmentVariable("CORS_ALLOWED_ORIGINS", null);
         Environment.SetEnvironmentVariable("CORS__AllowedOrigins__0", null);
-        Environment.SetEnvironmentVariable("IAM__RegistrationDelaySeconds", null);
     }
 
 
@@ -191,8 +189,7 @@ public class BaseIntegrationTestFactory<TProgram, TDbContext> : WebApplicationFa
                 ["ConnectionStrings:redis"] = _redisContainer!.GetConnectionString(),
                 ["ConnectionStrings:rabbitmq"] = _rabbitmqContainer!.GetConnectionString(),
                 ["CORS:AllowedOrigins:0"] = "http://localhost:3000",
-                ["CORS_ALLOWED_ORIGINS"] = "http://localhost:3000",
-                ["IAM:RegistrationDelaySeconds"] = "0"
+                ["CORS_ALLOWED_ORIGINS"] = "http://localhost:3000"
             });
         });
 

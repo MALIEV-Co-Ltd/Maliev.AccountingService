@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
-using Maliev.AccountingService.Infrastructure.Data;
+using Maliev.AccountingService.Application.Authorization;
 using Xunit;
 
 namespace Maliev.AccountingService.Tests.Integration;
@@ -14,38 +14,6 @@ public class AuthZTests : IClassFixture<TestWebApplicationFactory>
     public AuthZTests(TestWebApplicationFactory factory)
     {
         _factory = factory;
-    }
-
-    [Fact]
-    public async Task GetPermissions_ReturnsSuccessAndCorrectCount()
-    {
-        // Arrange
-        var client = _factory.CreateClient();
-
-        // Act
-        var response = await client.GetAsync("/accounting/v1/permissions");
-
-        // Assert
-        response.EnsureSuccessStatusCode();
-        var permissions = await response.Content.ReadFromJsonAsync<List<object>>();
-        Assert.NotNull(permissions);
-        Assert.Equal(20, permissions.Count);
-    }
-
-    [Fact]
-    public async Task GetRoles_ReturnsSuccessAndCorrectCount()
-    {
-        // Arrange
-        var client = _factory.CreateClient();
-
-        // Act
-        var response = await client.GetAsync("/accounting/v1/permissions/roles");
-
-        // Assert
-        response.EnsureSuccessStatusCode();
-        var roles = await response.Content.ReadFromJsonAsync<List<object>>();
-        Assert.NotNull(roles);
-        Assert.Equal(5, roles.Count);
     }
 
     [Fact]

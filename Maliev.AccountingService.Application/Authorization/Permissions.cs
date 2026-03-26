@@ -1,4 +1,4 @@
-namespace Maliev.AccountingService.Infrastructure.Data;
+namespace Maliev.AccountingService.Application.Authorization;
 
 /// <summary>
 /// Defines permission constants for the Accounting Service.

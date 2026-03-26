@@ -35,7 +35,7 @@ public class PeriodsController : ControllerBase
     /// List all financial periods
     /// </summary>
     [HttpGet]
-    [RequirePermission(AccountingPermissions.PeriodsOpen)] // Assuming open permission covers reading
+    [RequirePermission(Maliev.AccountingService.Application.Authorization.AccountingPermissions.PeriodsOpen)] // Assuming open permission covers reading
     public async Task<IActionResult> GetPeriods()
     {
         var periods = await _dbContext.FinancialPeriods
@@ -59,7 +59,7 @@ public class PeriodsController : ControllerBase
     /// Open a new period (handled automatically by JournalEntries usually, but exposed here)
     /// </summary>
     [HttpPost("open")]
-    [RequirePermission(AccountingPermissions.PeriodsOpen)]
+    [RequirePermission(Maliev.AccountingService.Application.Authorization.AccountingPermissions.PeriodsOpen)]
     public async Task<IActionResult> OpenPeriod([FromQuery] DateTime date)
     {
         var period = await _periodService.GetOrCreatePeriodAsync(date);
@@ -74,7 +74,7 @@ public class PeriodsController : ControllerBase
     /// Close an accounting period (Critical)
     /// </summary>
     [HttpPost("{id}/close")]
-    [RequirePermission(AccountingPermissions.PeriodsClose)]
+    [RequirePermission(Maliev.AccountingService.Application.Authorization.AccountingPermissions.PeriodsClose)]
     public async Task<IActionResult> ClosePeriod(Guid id)
     {
         try
@@ -92,7 +92,7 @@ public class PeriodsController : ControllerBase
     /// Reopen a closed period (Critical)
     /// </summary>
     [HttpPost("{id}/reopen")]
-    [RequirePermission(AccountingPermissions.PeriodsReopen)]
+    [RequirePermission(Maliev.AccountingService.Application.Authorization.AccountingPermissions.PeriodsReopen)]
     public async Task<IActionResult> ReopenPeriod(Guid id)
     {
         try

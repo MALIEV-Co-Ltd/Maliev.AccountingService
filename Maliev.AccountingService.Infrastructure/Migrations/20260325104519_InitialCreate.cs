@@ -3,8 +3,6 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
-
 namespace Maliev.AccountingService.Infrastructure.Migrations
 {
     /// <inheritdoc />
@@ -81,19 +79,6 @@ namespace Maliev.AccountingService.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "permissions",
-                columns: table => new
-                {
-                    code = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
-                    description = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
-                    is_critical = table.Column<bool>(type: "boolean", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("pk_permissions", x => x.code);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "processed_event_registry",
                 columns: table => new
                 {
@@ -107,18 +92,6 @@ namespace Maliev.AccountingService.Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("pk_processed_event_registry", x => x.id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "roles",
-                columns: table => new
-                {
-                    name = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    description = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("pk_roles", x => x.name);
                 });
 
             migrationBuilder.CreateTable(
@@ -143,30 +116,6 @@ namespace Maliev.AccountingService.Infrastructure.Migrations
                         principalTable: "fiscal_years",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "role_permissions",
-                columns: table => new
-                {
-                    role_name = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    permission_code = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("pk_role_permissions", x => new { x.role_name, x.permission_code });
-                    table.ForeignKey(
-                        name: "fk_role_permissions_permissions_permission_code",
-                        column: x => x.permission_code,
-                        principalTable: "permissions",
-                        principalColumn: "code",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "fk_role_permissions_roles_role_name",
-                        column: x => x.role_name,
-                        principalTable: "roles",
-                        principalColumn: "name",
-                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -350,126 +299,6 @@ namespace Maliev.AccountingService.Infrastructure.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
-            migrationBuilder.InsertData(
-                table: "permissions",
-                columns: new[] { "code", "description", "is_critical" },
-                values: new object[,]
-                {
-                    { "accounting.accounts.close", "Close accounts", true },
-                    { "accounting.accounts.create", "Create chart of accounts", false },
-                    { "accounting.accounts.delete", "Deactivate accounts", false },
-                    { "accounting.accounts.read", "Read account details", false },
-                    { "accounting.accounts.update", "Update accounts", false },
-                    { "accounting.journal-entries.create", "Create journal entries", false },
-                    { "accounting.journal-entries.post", "Post journal entries", true },
-                    { "accounting.journal-entries.read", "Read journal entries", false },
-                    { "accounting.journal-entries.reverse", "Reverse journal entries", true },
-                    { "accounting.journal-entries.update", "Update journal entries", false },
-                    { "accounting.periods.close", "Close accounting periods", true },
-                    { "accounting.periods.open", "Open accounting periods", false },
-                    { "accounting.periods.reopen", "Reopen closed periods", true },
-                    { "accounting.reconciliation.read", "Read reconciliation reports", false },
-                    { "accounting.reconciliation.run", "Run financial reconciliation", true },
-                    { "accounting.reports.balance-sheet", "View balance sheet", false },
-                    { "accounting.reports.cash-flow", "View cash flow statement", false },
-                    { "accounting.reports.export", "Export financial reports", false },
-                    { "accounting.reports.income-statement", "View income statement", false },
-                    { "accounting.reports.trial-balance", "View trial balance", false }
-                });
-
-            migrationBuilder.InsertData(
-                table: "roles",
-                columns: new[] { "name", "description" },
-                values: new object[,]
-                {
-                    { "roles.accounting.admin", "Full access to all accounting operations" },
-                    { "roles.accounting.clerk", "Basic journal and account data entry" },
-                    { "roles.accounting.controller", "Advanced accounting and period management" },
-                    { "roles.accounting.manager", "General accounting management access" },
-                    { "roles.accounting.viewer", "Read-only access to accounting data and reports" }
-                });
-
-            migrationBuilder.InsertData(
-                table: "role_permissions",
-                columns: new[] { "permission_code", "role_name" },
-                values: new object[,]
-                {
-                    { "accounting.accounts.close", "roles.accounting.admin" },
-                    { "accounting.accounts.create", "roles.accounting.admin" },
-                    { "accounting.accounts.delete", "roles.accounting.admin" },
-                    { "accounting.accounts.read", "roles.accounting.admin" },
-                    { "accounting.accounts.update", "roles.accounting.admin" },
-                    { "accounting.journal-entries.create", "roles.accounting.admin" },
-                    { "accounting.journal-entries.post", "roles.accounting.admin" },
-                    { "accounting.journal-entries.read", "roles.accounting.admin" },
-                    { "accounting.journal-entries.reverse", "roles.accounting.admin" },
-                    { "accounting.journal-entries.update", "roles.accounting.admin" },
-                    { "accounting.periods.close", "roles.accounting.admin" },
-                    { "accounting.periods.open", "roles.accounting.admin" },
-                    { "accounting.periods.reopen", "roles.accounting.admin" },
-                    { "accounting.reconciliation.read", "roles.accounting.admin" },
-                    { "accounting.reconciliation.run", "roles.accounting.admin" },
-                    { "accounting.reports.balance-sheet", "roles.accounting.admin" },
-                    { "accounting.reports.cash-flow", "roles.accounting.admin" },
-                    { "accounting.reports.export", "roles.accounting.admin" },
-                    { "accounting.reports.income-statement", "roles.accounting.admin" },
-                    { "accounting.reports.trial-balance", "roles.accounting.admin" },
-                    { "accounting.accounts.read", "roles.accounting.clerk" },
-                    { "accounting.journal-entries.create", "roles.accounting.clerk" },
-                    { "accounting.journal-entries.read", "roles.accounting.clerk" },
-                    { "accounting.reports.balance-sheet", "roles.accounting.clerk" },
-                    { "accounting.reports.cash-flow", "roles.accounting.clerk" },
-                    { "accounting.reports.export", "roles.accounting.clerk" },
-                    { "accounting.reports.income-statement", "roles.accounting.clerk" },
-                    { "accounting.reports.trial-balance", "roles.accounting.clerk" },
-                    { "accounting.accounts.close", "roles.accounting.controller" },
-                    { "accounting.accounts.create", "roles.accounting.controller" },
-                    { "accounting.accounts.delete", "roles.accounting.controller" },
-                    { "accounting.accounts.read", "roles.accounting.controller" },
-                    { "accounting.accounts.update", "roles.accounting.controller" },
-                    { "accounting.journal-entries.create", "roles.accounting.controller" },
-                    { "accounting.journal-entries.post", "roles.accounting.controller" },
-                    { "accounting.journal-entries.read", "roles.accounting.controller" },
-                    { "accounting.journal-entries.reverse", "roles.accounting.controller" },
-                    { "accounting.journal-entries.update", "roles.accounting.controller" },
-                    { "accounting.periods.close", "roles.accounting.controller" },
-                    { "accounting.periods.open", "roles.accounting.controller" },
-                    { "accounting.periods.reopen", "roles.accounting.controller" },
-                    { "accounting.reconciliation.read", "roles.accounting.controller" },
-                    { "accounting.reconciliation.run", "roles.accounting.controller" },
-                    { "accounting.reports.balance-sheet", "roles.accounting.controller" },
-                    { "accounting.reports.cash-flow", "roles.accounting.controller" },
-                    { "accounting.reports.export", "roles.accounting.controller" },
-                    { "accounting.reports.income-statement", "roles.accounting.controller" },
-                    { "accounting.reports.trial-balance", "roles.accounting.controller" },
-                    { "accounting.accounts.close", "roles.accounting.manager" },
-                    { "accounting.accounts.create", "roles.accounting.manager" },
-                    { "accounting.accounts.delete", "roles.accounting.manager" },
-                    { "accounting.accounts.read", "roles.accounting.manager" },
-                    { "accounting.accounts.update", "roles.accounting.manager" },
-                    { "accounting.journal-entries.create", "roles.accounting.manager" },
-                    { "accounting.journal-entries.post", "roles.accounting.manager" },
-                    { "accounting.journal-entries.read", "roles.accounting.manager" },
-                    { "accounting.journal-entries.reverse", "roles.accounting.manager" },
-                    { "accounting.journal-entries.update", "roles.accounting.manager" },
-                    { "accounting.periods.open", "roles.accounting.manager" },
-                    { "accounting.reconciliation.read", "roles.accounting.manager" },
-                    { "accounting.reconciliation.run", "roles.accounting.manager" },
-                    { "accounting.reports.balance-sheet", "roles.accounting.manager" },
-                    { "accounting.reports.cash-flow", "roles.accounting.manager" },
-                    { "accounting.reports.export", "roles.accounting.manager" },
-                    { "accounting.reports.income-statement", "roles.accounting.manager" },
-                    { "accounting.reports.trial-balance", "roles.accounting.manager" },
-                    { "accounting.accounts.read", "roles.accounting.viewer" },
-                    { "accounting.journal-entries.read", "roles.accounting.viewer" },
-                    { "accounting.reconciliation.read", "roles.accounting.viewer" },
-                    { "accounting.reports.balance-sheet", "roles.accounting.viewer" },
-                    { "accounting.reports.cash-flow", "roles.accounting.viewer" },
-                    { "accounting.reports.export", "roles.accounting.viewer" },
-                    { "accounting.reports.income-statement", "roles.accounting.viewer" },
-                    { "accounting.reports.trial-balance", "roles.accounting.viewer" }
-                });
-
             migrationBuilder.CreateIndex(
                 name: "ix_adjusting_entry_approvals_journal_entry_id",
                 table: "adjusting_entry_approvals",
@@ -618,11 +447,6 @@ namespace Maliev.AccountingService.Infrastructure.Migrations
                 filter: "status != 'Resolved'");
 
             migrationBuilder.CreateIndex(
-                name: "ix_role_permissions_permission_code",
-                table: "role_permissions",
-                column: "permission_code");
-
-            migrationBuilder.CreateIndex(
                 name: "ix_subledger_transactions_journal_entry_id",
                 table: "subledger_transactions",
                 column: "journal_entry_id");
@@ -665,19 +489,10 @@ namespace Maliev.AccountingService.Infrastructure.Migrations
                 name: "reconciliation_reports");
 
             migrationBuilder.DropTable(
-                name: "role_permissions");
-
-            migrationBuilder.DropTable(
                 name: "subledger_transactions");
 
             migrationBuilder.DropTable(
                 name: "tax_components");
-
-            migrationBuilder.DropTable(
-                name: "permissions");
-
-            migrationBuilder.DropTable(
-                name: "roles");
 
             migrationBuilder.DropTable(
                 name: "journal_entry_lines");
