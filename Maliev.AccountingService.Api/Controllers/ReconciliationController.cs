@@ -13,7 +13,6 @@ namespace Maliev.AccountingService.Api.Controllers;
 [ApiController]
 [ApiVersion("1")]
 [Route("accounting/v{version:apiVersion}/reconciliation")]
-[Authorize]
 public class ReconciliationController : ControllerBase
 {
     private readonly IReconciliationService _reconciliationService;

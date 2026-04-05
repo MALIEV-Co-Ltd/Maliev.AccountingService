@@ -14,7 +14,6 @@ namespace Maliev.AccountingService.Api.Controllers;
 [ApiController]
 [ApiVersion("1")]
 [Route("accounting/v{version:apiVersion}/periods")]
-[Authorize]
 public class PeriodsController : ControllerBase
 {
     private readonly AccountingDbContext _dbContext;

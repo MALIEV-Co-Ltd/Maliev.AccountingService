@@ -13,7 +13,6 @@ namespace Maliev.AccountingService.Api.Controllers;
 [ApiController]
 [ApiVersion("1")]
 [Route("accounting/v{version:apiVersion}/reports")]
-[Authorize]
 public class ReportsController : ControllerBase
 {
     private readonly IReportingService _reportingService;

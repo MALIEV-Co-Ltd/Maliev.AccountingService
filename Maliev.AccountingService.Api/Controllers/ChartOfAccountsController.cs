@@ -15,7 +15,6 @@ namespace Maliev.AccountingService.Api.Controllers;
 [ApiController]
 [ApiVersion("1")]
 [Route("accounting/v{version:apiVersion}/chart-of-accounts")]
-[Authorize]
 public sealed class ChartOfAccountsController : ControllerBase
 {
     private readonly IChartOfAccountsService _chartOfAccountsService;

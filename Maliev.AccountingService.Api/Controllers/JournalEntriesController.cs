@@ -19,7 +19,6 @@ namespace Maliev.AccountingService.Api.Controllers;
 [ApiController]
 [ApiVersion("1")]
 [Route("accounting/v{version:apiVersion}/journal-entries")]
-[Authorize]
 public class JournalEntriesController : ControllerBase
 {
     private readonly AccountingDbContext _context;
