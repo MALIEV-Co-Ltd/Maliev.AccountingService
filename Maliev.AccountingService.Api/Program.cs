@@ -1,4 +1,5 @@
 using Maliev.AccountingService.Api.Services;
+using Maliev.AccountingService.Api.Extensions;
 using Maliev.AccountingService.Infrastructure.Data;
 using Maliev.Aspire.ServiceDefaults;
 
@@ -93,6 +94,11 @@ try
 
     // --- Database Migrations ---
     await app.MigrateDatabaseAsync<AccountingDbContext>();
+    using (var scope = app.Services.CreateScope())
+    {
+        var context = scope.ServiceProvider.GetRequiredService<AccountingDbContext>();
+        await context.SeedStandardChartOfAccountsAsync(logger);
+    }
 
     // Middleware Pipeline
     app.UseStandardMiddleware();
