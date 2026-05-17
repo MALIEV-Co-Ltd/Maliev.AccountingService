@@ -217,8 +217,12 @@ public class BulkImportService : IBulkImportService
                 CreatedBy = Guid.Empty,
                 PostedAt = DateTime.UtcNow,
                 PostedBy = Guid.Empty,
+                CurrencyCode = "THB",
+                ExchangeRateToBase = 1m,
                 TotalDebit = totalDebits,
-                TotalCredit = totalCredits
+                TotalCredit = totalCredits,
+                TransactionTotalDebit = totalDebits,
+                TransactionTotalCredit = totalCredits
             };
 
             int seq = 1;
@@ -234,7 +238,9 @@ public class BulkImportService : IBulkImportService
                     LineSequence = seq++,
                     Description = "Opening balance",
                     DebitAmount = balance.DebitAmount,
-                    CreditAmount = balance.CreditAmount
+                    CreditAmount = balance.CreditAmount,
+                    TransactionDebitAmount = balance.DebitAmount,
+                    TransactionCreditAmount = balance.CreditAmount
                 });
             }
 

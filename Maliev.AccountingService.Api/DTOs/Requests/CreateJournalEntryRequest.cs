@@ -27,6 +27,17 @@ public class CreateJournalEntryRequest
     public string? Reference { get; set; }
 
     /// <summary>
+    /// Gets or sets the ISO 4217 transaction currency code.
+    /// </summary>
+    [StringLength(3, MinimumLength = 3)]
+    public string CurrencyCode { get; set; } = "THB";
+
+    /// <summary>
+    /// Gets or sets the multiplier from the transaction currency to the accounting base currency.
+    /// </summary>
+    public decimal ExchangeRateToBase { get; set; } = 1m;
+
+    /// <summary>
     /// Gets or sets the entry lines.
     /// </summary>
     [Required]
@@ -56,6 +67,18 @@ public class CreateJournalEntryLineRequest
     /// </summary>
     [Range(0, (double)decimal.MaxValue, ErrorMessage = "Credit amount must be non-negative")]
     public decimal CreditAmount { get; set; }
+
+    /// <summary>
+    /// Gets or sets the debit amount in the original transaction currency.
+    /// </summary>
+    [Range(0, (double)decimal.MaxValue, ErrorMessage = "Transaction debit amount must be non-negative")]
+    public decimal? TransactionDebitAmount { get; set; }
+
+    /// <summary>
+    /// Gets or sets the credit amount in the original transaction currency.
+    /// </summary>
+    [Range(0, (double)decimal.MaxValue, ErrorMessage = "Transaction credit amount must be non-negative")]
+    public decimal? TransactionCreditAmount { get; set; }
 
     /// <summary>
     /// Gets or sets the description.

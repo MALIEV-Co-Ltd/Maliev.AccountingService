@@ -100,6 +100,7 @@ public class EventProcessingService : EventProcessingServiceBase, IEventProcessi
                 journalEntry.Lines = lines;
                 journalEntry.TotalDebit = lines.Sum(l => l.DebitAmount);
                 journalEntry.TotalCredit = lines.Sum(l => l.CreditAmount);
+                ApplyTransactionCurrencyDefaults(journalEntry);
 
                 _context.JournalEntries.Add(journalEntry);
                 await _context.SaveChangesAsync(cancellationToken);
@@ -159,6 +160,7 @@ public class EventProcessingService : EventProcessingServiceBase, IEventProcessi
                 journalEntry.Lines = lines;
                 journalEntry.TotalDebit = lines.Sum(l => l.DebitAmount);
                 journalEntry.TotalCredit = lines.Sum(l => l.CreditAmount);
+                ApplyTransactionCurrencyDefaults(journalEntry);
 
                 _context.JournalEntries.Add(journalEntry);
                 await _context.SaveChangesAsync(cancellationToken);
@@ -208,6 +210,7 @@ public class EventProcessingService : EventProcessingServiceBase, IEventProcessi
                 journalEntry.Lines = lines;
                 journalEntry.TotalDebit = lines.Sum(l => l.DebitAmount);
                 journalEntry.TotalCredit = lines.Sum(l => l.CreditAmount);
+                ApplyTransactionCurrencyDefaults(journalEntry);
 
                 _context.JournalEntries.Add(journalEntry);
                 await _context.SaveChangesAsync(cancellationToken);
@@ -257,6 +260,7 @@ public class EventProcessingService : EventProcessingServiceBase, IEventProcessi
                 journalEntry.Lines = lines;
                 journalEntry.TotalDebit = lines.Sum(l => l.DebitAmount);
                 journalEntry.TotalCredit = lines.Sum(l => l.CreditAmount);
+                ApplyTransactionCurrencyDefaults(journalEntry);
 
                 _context.JournalEntries.Add(journalEntry);
                 await _context.SaveChangesAsync(cancellationToken);
@@ -306,6 +310,7 @@ public class EventProcessingService : EventProcessingServiceBase, IEventProcessi
                 journalEntry.Lines = lines;
                 journalEntry.TotalDebit = lines.Sum(l => l.DebitAmount);
                 journalEntry.TotalCredit = lines.Sum(l => l.CreditAmount);
+                ApplyTransactionCurrencyDefaults(journalEntry);
 
                 _context.JournalEntries.Add(journalEntry);
                 await _context.SaveChangesAsync(cancellationToken);
@@ -341,6 +346,22 @@ public class EventProcessingService : EventProcessingServiceBase, IEventProcessi
                 PostedAt: entry.PostedAt ?? DateTimeOffset.UtcNow
             )
         ), ct);
+    }
+
+    private static void ApplyTransactionCurrencyDefaults(JournalEntry journalEntry)
+    {
+        journalEntry.CurrencyCode = string.IsNullOrWhiteSpace(journalEntry.CurrencyCode)
+            ? "THB"
+            : journalEntry.CurrencyCode.Trim().ToUpperInvariant();
+        journalEntry.ExchangeRateToBase = journalEntry.ExchangeRateToBase <= 0m ? 1m : journalEntry.ExchangeRateToBase;
+        journalEntry.TransactionTotalDebit = journalEntry.TotalDebit;
+        journalEntry.TransactionTotalCredit = journalEntry.TotalCredit;
+
+        foreach (var line in journalEntry.Lines)
+        {
+            line.TransactionDebitAmount = line.DebitAmount;
+            line.TransactionCreditAmount = line.CreditAmount;
+        }
     }
 }
 

@@ -25,6 +25,12 @@ public class JournalEntryLine
     [Column(TypeName = "decimal(18,2)")]
     public decimal CreditAmount { get; set; }
 
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal TransactionDebitAmount { get; set; }
+
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal TransactionCreditAmount { get; set; }
+
     [StringLength(50)]
     public string? ReferenceType { get; set; }
 

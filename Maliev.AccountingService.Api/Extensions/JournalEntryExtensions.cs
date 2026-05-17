@@ -27,6 +27,10 @@ public static class JournalEntryExtensions
             TotalCredit = journalEntry.TotalCredit,
             SourceEventId = journalEntry.SourceEventId != null ? Guid.Parse(journalEntry.SourceEventId) : null,
             Reference = journalEntry.SourceSystem,
+            CurrencyCode = NormalizeCurrencyCode(journalEntry.CurrencyCode),
+            ExchangeRateToBase = journalEntry.ExchangeRateToBase <= 0m ? 1m : journalEntry.ExchangeRateToBase,
+            TransactionTotalDebit = ResolveTransactionAmount(journalEntry.TransactionTotalDebit, journalEntry.TotalDebit),
+            TransactionTotalCredit = ResolveTransactionAmount(journalEntry.TransactionTotalCredit, journalEntry.TotalCredit),
             CreatedAt = journalEntry.CreatedAt,
             PostedAt = journalEntry.PostedAt,
             PostedBy = journalEntry.PostedBy,
@@ -48,6 +52,8 @@ public static class JournalEntryExtensions
             AccountName = line.Account?.Name ?? string.Empty,
             DebitAmount = line.DebitAmount,
             CreditAmount = line.CreditAmount,
+            TransactionDebitAmount = ResolveTransactionAmount(line.TransactionDebitAmount, line.DebitAmount),
+            TransactionCreditAmount = ResolveTransactionAmount(line.TransactionCreditAmount, line.CreditAmount),
             Description = line.Description,
             CustomerId = line.CustomerId,
             SupplierId = line.SupplierId,
@@ -106,6 +112,8 @@ public static class JournalEntryExtensions
             Status = EntryStatus.Draft,
             PeriodId = periodId,
             SourceSystem = request.Reference,
+            CurrencyCode = NormalizeCurrencyCode(request.CurrencyCode),
+            ExchangeRateToBase = request.ExchangeRateToBase <= 0m ? 1m : request.ExchangeRateToBase,
             CreatedAt = DateTime.UtcNow,
             CreatedBy = createdBy,
             Lines = new List<JournalEntryLine>()
@@ -120,6 +128,8 @@ public static class JournalEntryExtensions
         // Calculate totals
         journalEntry.TotalDebit = journalEntry.Lines.Sum(l => l.DebitAmount);
         journalEntry.TotalCredit = journalEntry.Lines.Sum(l => l.CreditAmount);
+        journalEntry.TransactionTotalDebit = journalEntry.Lines.Sum(l => ResolveTransactionAmount(l.TransactionDebitAmount, l.DebitAmount));
+        journalEntry.TransactionTotalCredit = journalEntry.Lines.Sum(l => ResolveTransactionAmount(l.TransactionCreditAmount, l.CreditAmount));
 
         return journalEntry;
     }
@@ -137,6 +147,8 @@ public static class JournalEntryExtensions
             AccountId = request.AccountId,
             DebitAmount = request.DebitAmount,
             CreditAmount = request.CreditAmount,
+            TransactionDebitAmount = request.TransactionDebitAmount ?? request.DebitAmount,
+            TransactionCreditAmount = request.TransactionCreditAmount ?? request.CreditAmount,
             Description = request.Description,
             CustomerId = request.CustomerId,
             SupplierId = request.SupplierId,
@@ -170,4 +182,10 @@ public static class JournalEntryExtensions
             TaxAmount = request.TaxAmount
         };
     }
+
+    private static string NormalizeCurrencyCode(string? currencyCode) =>
+        string.IsNullOrWhiteSpace(currencyCode) ? "THB" : currencyCode.Trim().ToUpperInvariant();
+
+    private static decimal ResolveTransactionAmount(decimal transactionAmount, decimal baseAmount) =>
+        transactionAmount != 0m || baseAmount == 0m ? transactionAmount : baseAmount;
 }

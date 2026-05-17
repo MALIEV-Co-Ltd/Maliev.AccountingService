@@ -30,11 +30,24 @@ public class JournalEntry
     [StringLength(100)]
     public string? SourceEventId { get; set; }
 
+    [Required]
+    [StringLength(3)]
+    public string CurrencyCode { get; set; } = "THB";
+
+    [Column(TypeName = "decimal(18,8)")]
+    public decimal ExchangeRateToBase { get; set; } = 1m;
+
     [Column(TypeName = "decimal(18,2)")]
     public decimal TotalDebit { get; set; }
 
     [Column(TypeName = "decimal(18,2)")]
     public decimal TotalCredit { get; set; }
+
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal TransactionTotalDebit { get; set; }
+
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal TransactionTotalCredit { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

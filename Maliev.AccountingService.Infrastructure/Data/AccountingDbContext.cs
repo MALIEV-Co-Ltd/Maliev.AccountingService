@@ -82,6 +82,22 @@ public class AccountingDbContext : DbContext
             entity.HasIndex(e => e.SourceEventId);
             entity.HasIndex(e => e.EntryDate);
 
+            entity.Property(e => e.CurrencyCode)
+                .HasMaxLength(3)
+                .HasDefaultValue("THB");
+
+            entity.Property(e => e.ExchangeRateToBase)
+                .HasColumnType("decimal(18,8)")
+                .HasDefaultValue(1m);
+
+            entity.Property(e => e.TransactionTotalDebit)
+                .HasColumnType("decimal(18,2)")
+                .HasDefaultValue(0m);
+
+            entity.Property(e => e.TransactionTotalCredit)
+                .HasColumnType("decimal(18,2)")
+                .HasDefaultValue(0m);
+
             entity.HasOne(e => e.Period)
                 .WithMany()
                 .HasForeignKey(e => e.PeriodId)
@@ -102,6 +118,14 @@ public class AccountingDbContext : DbContext
             entity.HasIndex(e => e.AccountId);
             entity.HasIndex(e => new { e.CustomerId });
             entity.HasIndex(e => new { e.SupplierId });
+
+            entity.Property(e => e.TransactionDebitAmount)
+                .HasColumnType("decimal(18,2)")
+                .HasDefaultValue(0m);
+
+            entity.Property(e => e.TransactionCreditAmount)
+                .HasColumnType("decimal(18,2)")
+                .HasDefaultValue(0m);
 
             entity.HasOne(e => e.JournalEntry)
                 .WithMany(e => e.Lines)

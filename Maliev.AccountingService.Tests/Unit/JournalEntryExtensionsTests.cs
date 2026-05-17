@@ -26,6 +26,10 @@ public class JournalEntryExtensionsTests
             Period = new FinancialPeriod { Id = periodId, Name = "2025-01" },
             TotalDebit = 1000m,
             TotalCredit = 1000m,
+            CurrencyCode = "USD",
+            ExchangeRateToBase = 36.5m,
+            TransactionTotalDebit = 27.40m,
+            TransactionTotalCredit = 27.40m,
             SourceSystem = "TEST",
             CreatedAt = DateTime.UtcNow,
             Lines = new List<JournalEntryLine>()
@@ -45,6 +49,10 @@ public class JournalEntryExtensionsTests
         Assert.Equal("2025-01", response.PeriodName);
         Assert.Equal(1000m, response.TotalDebit);
         Assert.Equal(1000m, response.TotalCredit);
+        Assert.Equal("USD", response.CurrencyCode);
+        Assert.Equal(36.5m, response.ExchangeRateToBase);
+        Assert.Equal(27.40m, response.TransactionTotalDebit);
+        Assert.Equal(27.40m, response.TransactionTotalCredit);
         Assert.NotNull(response.Lines);
     }
 
@@ -88,6 +96,7 @@ public class JournalEntryExtensionsTests
             Account = new ChartOfAccount { AccountNumber = "1000", Name = "Cash" },
             DebitAmount = 500m,
             CreditAmount = 0m,
+            TransactionDebitAmount = 13.70m,
             Description = "Payment received",
             CustomerId = customerId,
             ReferenceId = "INV-001",
@@ -106,6 +115,8 @@ public class JournalEntryExtensionsTests
         Assert.Equal("Cash", response.AccountName);
         Assert.Equal(500m, response.DebitAmount);
         Assert.Equal(0m, response.CreditAmount);
+        Assert.Equal(13.70m, response.TransactionDebitAmount);
+        Assert.Equal(0m, response.TransactionCreditAmount);
         Assert.Equal("Payment received", response.Description);
         Assert.Equal(customerId, response.CustomerId);
         Assert.Equal("INV-001", response.Reference);
@@ -175,20 +186,24 @@ public class JournalEntryExtensionsTests
             EntryDate = new DateTime(2025, 1, 15),
             Description = "Test Entry",
             Reference = "REF-001",
+            CurrencyCode = "usd",
+            ExchangeRateToBase = 36.5m,
             Lines = new List<CreateJournalEntryLineRequest>
             {
                 new()
                 {
                     AccountId = accountId1,
-                    DebitAmount = 1000m,
+                    DebitAmount = 36500m,
                     CreditAmount = 0m,
+                    TransactionDebitAmount = 1000m,
                     Description = "Debit line"
                 },
                 new()
                 {
                     AccountId = accountId2,
                     DebitAmount = 0m,
-                    CreditAmount = 1000m,
+                    CreditAmount = 36500m,
+                    TransactionCreditAmount = 1000m,
                     Description = "Credit line"
                 }
             }
@@ -205,10 +220,14 @@ public class JournalEntryExtensionsTests
         Assert.Equal(EntryStatus.Draft, entity.Status);
         Assert.Equal(periodId, entity.PeriodId);
         Assert.Equal("REF-001", entity.SourceSystem);
+        Assert.Equal("USD", entity.CurrencyCode);
+        Assert.Equal(36.5m, entity.ExchangeRateToBase);
         Assert.Equal(createdBy, entity.CreatedBy);
         Assert.Equal(2, entity.Lines.Count);
-        Assert.Equal(1000m, entity.TotalDebit);
-        Assert.Equal(1000m, entity.TotalCredit);
+        Assert.Equal(36500m, entity.TotalDebit);
+        Assert.Equal(36500m, entity.TotalCredit);
+        Assert.Equal(1000m, entity.TransactionTotalDebit);
+        Assert.Equal(1000m, entity.TransactionTotalCredit);
     }
 
     [Fact]
@@ -223,8 +242,9 @@ public class JournalEntryExtensionsTests
         var request = new CreateJournalEntryLineRequest
         {
             AccountId = accountId,
-            DebitAmount = 500m,
+            DebitAmount = 18250m,
             CreditAmount = 0m,
+            TransactionDebitAmount = 500m,
             Description = "Test line",
             CustomerId = customerId,
             SupplierId = supplierId,
@@ -250,8 +270,10 @@ public class JournalEntryExtensionsTests
         Assert.Equal(journalEntryId, entity.JournalEntryId);
         Assert.Equal(1, entity.LineSequence);
         Assert.Equal(accountId, entity.AccountId);
-        Assert.Equal(500m, entity.DebitAmount);
+        Assert.Equal(18250m, entity.DebitAmount);
         Assert.Equal(0m, entity.CreditAmount);
+        Assert.Equal(500m, entity.TransactionDebitAmount);
+        Assert.Equal(0m, entity.TransactionCreditAmount);
         Assert.Equal("Test line", entity.Description);
         Assert.Equal(customerId, entity.CustomerId);
         Assert.Equal(supplierId, entity.SupplierId);

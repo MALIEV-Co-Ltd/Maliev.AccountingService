@@ -61,6 +61,26 @@ public class JournalEntryResponse
     public string? Reference { get; set; }
 
     /// <summary>
+    /// Gets or sets the ISO 4217 transaction currency code.
+    /// </summary>
+    public string CurrencyCode { get; set; } = "THB";
+
+    /// <summary>
+    /// Gets or sets the multiplier from the transaction currency to the accounting base currency.
+    /// </summary>
+    public decimal ExchangeRateToBase { get; set; } = 1m;
+
+    /// <summary>
+    /// Gets or sets the total debit amount in the original transaction currency.
+    /// </summary>
+    public decimal TransactionTotalDebit { get; set; }
+
+    /// <summary>
+    /// Gets or sets the total credit amount in the original transaction currency.
+    /// </summary>
+    public decimal TransactionTotalCredit { get; set; }
+
+    /// <summary>
     /// Gets or sets the creation date.
     /// </summary>
     public DateTime CreatedAt { get; set; }
@@ -120,6 +140,16 @@ public class JournalEntryLineResponse
     /// Gets or sets the credit amount.
     /// </summary>
     public decimal CreditAmount { get; set; }
+
+    /// <summary>
+    /// Gets or sets the debit amount in the original transaction currency.
+    /// </summary>
+    public decimal TransactionDebitAmount { get; set; }
+
+    /// <summary>
+    /// Gets or sets the credit amount in the original transaction currency.
+    /// </summary>
+    public decimal TransactionCreditAmount { get; set; }
 
     /// <summary>
     /// Gets or sets the description.

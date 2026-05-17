@@ -159,9 +159,22 @@ public class JournalEntriesController : ControllerBase
     public async Task<ActionResult<JournalEntryResponse>> CreateJournalEntry(
         [FromBody] CreateJournalEntryRequest request)
     {
+        var currencyCode = NormalizeCurrencyCode(request.CurrencyCode);
+        if (currencyCode is null)
+        {
+            return BadRequest(new { message = "Currency code must be a 3-letter ISO 4217 code" });
+        }
+
+        if (request.ExchangeRateToBase <= 0m)
+        {
+            return BadRequest(new { message = "Exchange rate to base currency must be greater than zero" });
+        }
+
         // Validate balanced entry
         var totalDebit = request.Lines.Sum(l => l.DebitAmount);
         var totalCredit = request.Lines.Sum(l => l.CreditAmount);
+        var transactionTotalDebit = request.Lines.Sum(l => l.TransactionDebitAmount ?? l.DebitAmount);
+        var transactionTotalCredit = request.Lines.Sum(l => l.TransactionCreditAmount ?? l.CreditAmount);
 
         if (totalDebit != totalCredit)
         {
@@ -171,6 +184,17 @@ public class JournalEntriesController : ControllerBase
                 totalDebit,
                 totalCredit,
                 difference = totalDebit - totalCredit
+            });
+        }
+
+        if (transactionTotalDebit != transactionTotalCredit)
+        {
+            return BadRequest(new
+            {
+                message = "Journal entry transaction amounts are not balanced",
+                transactionTotalDebit,
+                transactionTotalCredit,
+                difference = transactionTotalDebit - transactionTotalCredit
             });
         }
 
@@ -204,8 +228,12 @@ public class JournalEntriesController : ControllerBase
                     Description = request.Description,
                     Status = EntryStatus.Draft,
                     CreatedBy = userId,
+                    CurrencyCode = currencyCode,
+                    ExchangeRateToBase = request.ExchangeRateToBase,
                     TotalDebit = totalDebit,
-                    TotalCredit = totalCredit
+                    TotalCredit = totalCredit,
+                    TransactionTotalDebit = transactionTotalDebit,
+                    TransactionTotalCredit = transactionTotalCredit
                 };
 
                 // Pre-fetch all referenced account IDs to avoid N+1 queries
@@ -232,6 +260,8 @@ public class JournalEntriesController : ControllerBase
                         Description = lineRequest.Description,
                         DebitAmount = lineRequest.DebitAmount,
                         CreditAmount = lineRequest.CreditAmount,
+                        TransactionDebitAmount = lineRequest.TransactionDebitAmount ?? lineRequest.DebitAmount,
+                        TransactionCreditAmount = lineRequest.TransactionCreditAmount ?? lineRequest.CreditAmount,
                         CustomerId = lineRequest.CustomerId,
                         SupplierId = lineRequest.SupplierId,
                         ReferenceId = lineRequest.Reference
@@ -299,6 +329,19 @@ public class JournalEntriesController : ControllerBase
                 throw;
             }
         });
+    }
+
+    private static string? NormalizeCurrencyCode(string? currencyCode)
+    {
+        if (string.IsNullOrWhiteSpace(currencyCode))
+        {
+            return "THB";
+        }
+
+        var normalized = currencyCode.Trim().ToUpperInvariant();
+        return normalized.Length == 3 && normalized.All(static c => c is >= 'A' and <= 'Z')
+            ? normalized
+            : null;
     }
 
     /// <summary>
