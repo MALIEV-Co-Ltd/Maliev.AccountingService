@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
     uses: ./.github/workflows/_build-and-test.yml
@@ -42,16 +45,16 @@ jobs:
             -f Maliev.AccountingService.Api/Dockerfile .
           docker push asia-southeast1-docker.pkg.dev/maliev-website/maliev-website-artifact-prod/maliev-accounting-service:${{ github.sha }}
 
+      - name: Install Kustomize
+        uses: imranismail/setup-kustomize@v2
+
       - name: Checkout maliev-gitops repository
         uses: actions/checkout@v5
         with:
           repository: MALIEV-Co-Ltd/maliev-gitops
+          ref: main
           token: ${{ secrets.GITOPS_PAT }}
           path: maliev-gitops
-
-      - name: Install Kustomize
-        uses: imranismail/setup-kustomize@v2
-
 
       - name: Update image tag in maliev-gitops using Kustomize
         run: |
@@ -101,8 +104,9 @@ jobs:
 
           # Create pull request using GitHub CLI
           gh pr create \
-            --title "chore(prod): Update accounting-service" \
+            --title "[DO NOT MERGE] chore(prod): Update accounting-service" \
             --body "$PR_BODY" \
             --base main \
             --head $BRANCH_NAME \
+            --draft \
             --repo MALIEV-Co-Ltd/maliev-gitops
