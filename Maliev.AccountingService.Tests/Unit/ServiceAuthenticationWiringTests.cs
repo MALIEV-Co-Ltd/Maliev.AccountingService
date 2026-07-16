@@ -143,7 +143,7 @@ public sealed class ServiceAuthenticationWiringTests
 
         AssertControllerRoute<ReconciliationController>("accounting/v{version:apiVersion}/reconciliation");
         AssertEndpoint<ReconciliationController>(nameof(ReconciliationController.RunReconciliation), "run", "GET", AccountingPermissions.ReconciliationRun);
-        AssertEndpoint<ReconciliationController>(nameof(ReconciliationController.RunReconciliationPost), "run", "POST", AccountingPermissions.ReconciliationRun);
+        AssertEndpoint<ReconciliationController>(nameof(ReconciliationController.RunReconciliationPost), "run", "POST", AccountingPermissions.ReconciliationsRun);
 
         var legacyReconciliation = typeof(ReconciliationController).GetMethod(
             nameof(ReconciliationController.RunReconciliation),

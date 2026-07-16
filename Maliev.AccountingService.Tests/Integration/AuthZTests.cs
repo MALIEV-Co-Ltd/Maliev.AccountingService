@@ -105,6 +105,40 @@ public class AuthZTests : IClassFixture<TestWebApplicationFactory>
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    [Theory]
+    [InlineData("GET", AccountingPermissions.ReconciliationRun)]
+    [InlineData("POST", AccountingPermissions.ReconciliationsRun)]
+    public async Task RunReconciliation_WithMatchingPermission_ReturnsSuccess(
+        string verb,
+        string permission)
+    {
+        var client = _factory.CreateAuthenticatedClient(permissions: new[] { permission });
+        using var request = new HttpRequestMessage(
+            new HttpMethod(verb),
+            $"/accounting/v1/reconciliation/run?sourceSystem=Sales&periodId={Guid.NewGuid()}");
+
+        var response = await client.SendAsync(request);
+
+        response.EnsureSuccessStatusCode();
+    }
+
+    [Theory]
+    [InlineData("GET", AccountingPermissions.ReconciliationsRun)]
+    [InlineData("POST", AccountingPermissions.ReconciliationRun)]
+    public async Task RunReconciliation_WithOtherVerbPermission_ReturnsForbidden(
+        string verb,
+        string permission)
+    {
+        var client = _factory.CreateAuthenticatedClient(permissions: new[] { permission });
+        using var request = new HttpRequestMessage(
+            new HttpMethod(verb),
+            $"/accounting/v1/reconciliation/run?sourceSystem=Sales&periodId={Guid.NewGuid()}");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     [Fact]
     public async Task GetBalanceSheet_WithCorrectPermission_ReturnsSuccess()
     {

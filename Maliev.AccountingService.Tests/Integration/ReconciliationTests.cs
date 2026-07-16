@@ -13,7 +13,7 @@ public class ReconciliationTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task RunReconciliation_Balanced_ShouldReturnSuccess()
+    public async Task RunReconciliation_Post_Balanced_ShouldReturnSuccess()
     {
         await CleanDatabaseAsync();
 
@@ -97,7 +97,7 @@ public class ReconciliationTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task RunReconciliation_Unbalanced_ShouldReportVariance()
+    public async Task RunReconciliation_LegacyGet_Unbalanced_ShouldReportVariance()
     {
         await CleanDatabaseAsync();
 

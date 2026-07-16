@@ -52,7 +52,7 @@ public class ReconciliationController : ControllerBase
     /// <param name="cancellationToken">A token that can cancel the reconciliation.</param>
     /// <returns>The reconciliation result.</returns>
     [HttpPost("run")]
-    [RequirePermission(AccountingPermissions.ReconciliationRun)]
+    [RequirePermission(AccountingPermissions.ReconciliationsRun)]
     public Task<IActionResult> RunReconciliationPost(
         [FromQuery] string sourceSystem,
         [FromQuery] Guid periodId,
