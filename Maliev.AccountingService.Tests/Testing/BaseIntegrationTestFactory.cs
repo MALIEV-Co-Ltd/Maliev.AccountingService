@@ -64,7 +64,7 @@ public class BaseIntegrationTestFactory<TProgram, TDbContext> : WebApplicationFa
         {
             if (!_containersStarted)
             {
-                _postgresContainer = 
+                _postgresContainer =
 #pragma warning disable CS0618
         new PostgreSqlBuilder().WithImage("postgres:18-alpine")
                     .Build();
@@ -181,10 +181,16 @@ public class BaseIntegrationTestFactory<TProgram, TDbContext> : WebApplicationFa
             {
                 ["Service:Name"] = "AccountingService",
                 ["Service:Version"] = "1.0.0-test",
-                ["Services:IAMService:BaseUrl"] = "http://localhost:5000",
+                ["ServiceAuthentication:ClientId"] = "service-accounting-service",
+                ["ServiceAuthentication:ClientSecret"] = "accounting-test-secret-with-at-least-32-bytes",
+                ["Services:AuthService:BaseUrl"] = "https://auth.test",
+                ["Services:IAMService:BaseUrl"] = "https://iam.test",
                 ["Jwt:SecurityKey"] = "test-secret-key-at-least-32-characters-long!!",
-                ["Jwt:Issuer"] = "test-issuer",
-                ["Jwt:Audience"] = "test-audience",
+                ["Jwt:PublicKey"] = Convert.ToBase64String(
+                    System.Text.Encoding.UTF8.GetBytes(_testRsa.ExportSubjectPublicKeyInfoPem())),
+                ["Jwt:Issuer"] = "https://test-issuer.maliev.com",
+                ["Jwt:Audience"] = "https://test-audience.maliev.com",
+                ["Features:FailOpenOnIAMError"] = "false",
                 [$"ConnectionStrings:{DbConnectionStringName}"] = _postgresContainer!.GetConnectionString(),
                 ["ConnectionStrings:redis"] = _redisContainer!.GetConnectionString(),
                 ["ConnectionStrings:rabbitmq"] = _rabbitmqContainer!.GetConnectionString(),
@@ -202,7 +208,7 @@ public class BaseIntegrationTestFactory<TProgram, TDbContext> : WebApplicationFa
                 return StackExchange.Redis.ConnectionMultiplexer.Connect(redisConnectionString);
             });
 
-            // Mock IAM service to fail fast and fallback to JWT claims
+            // Keep existing endpoint tests isolated from the external IAM dependency.
             var iamMock = new Mock<Maliev.Aspire.ServiceDefaults.IAM.IIamServiceClient>();
             iamMock.Setup(x => x.CheckPermissionAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(false);
@@ -225,8 +231,8 @@ public class BaseIntegrationTestFactory<TProgram, TDbContext> : WebApplicationFa
                     ValidateAudience = true,
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
-                    ValidIssuer = "test-issuer",
-                    ValidAudience = "test-audience",
+                    ValidIssuer = "https://test-issuer.maliev.com",
+                    ValidAudience = "https://test-audience.maliev.com",
                     IssuerSigningKey = new RsaSecurityKey(_testRsa),
                     ClockSkew = TimeSpan.Zero, // No clock skew for tests
                     NameClaimType = "sub",
@@ -421,8 +427,8 @@ public class BaseIntegrationTestFactory<TProgram, TDbContext> : WebApplicationFa
         var signingCredentials = new SigningCredentials(rsaSecurityKey, SecurityAlgorithms.RsaSha256);
 
         var token = new JwtSecurityToken(
-            issuer: "test-issuer",
-            audience: "test-audience",
+            issuer: "https://test-issuer.maliev.com",
+            audience: "https://test-audience.maliev.com",
             claims: claims,
             expires: DateTime.UtcNow.AddHours(1),
             signingCredentials: signingCredentials
