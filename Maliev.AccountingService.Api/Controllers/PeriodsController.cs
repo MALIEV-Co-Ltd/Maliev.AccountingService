@@ -34,7 +34,7 @@ public class PeriodsController : ControllerBase
     /// List all financial periods
     /// </summary>
     [HttpGet]
-    [RequirePermission(Maliev.AccountingService.Application.Authorization.AccountingPermissions.PeriodsOpen)] // Assuming open permission covers reading
+    [RequirePermission(Maliev.AccountingService.Application.Authorization.AccountingPermissions.PeriodsRead)]
     public async Task<IActionResult> GetPeriods()
     {
         var periods = await _dbContext.FinancialPeriods

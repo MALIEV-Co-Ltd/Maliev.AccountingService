@@ -31,12 +31,45 @@ public class ReconciliationController : ControllerBase
     /// </summary>
     /// <param name="sourceSystem">The source system to reconcile (e.g., Sales, Procurement).</param>
     /// <param name="periodId">The ID of the financial period.</param>
+    /// <param name="cancellationToken">A token that can cancel the reconciliation.</param>
     /// <returns>The reconciliation result.</returns>
     [HttpGet("run")]
     [RequirePermission(AccountingPermissions.ReconciliationRun)]
-    public async Task<IActionResult> RunReconciliation([FromQuery] string sourceSystem, [FromQuery] Guid periodId)
+    [Obsolete("Use POST /accounting/v1/reconciliation/run for state-changing reconciliation operations.")]
+    public Task<IActionResult> RunReconciliation(
+        [FromQuery] string sourceSystem,
+        [FromQuery] Guid periodId,
+        CancellationToken cancellationToken)
     {
-        var result = await _reconciliationService.ReconcileSubledgerAsync(sourceSystem, periodId);
+        return ExecuteReconciliationAsync(sourceSystem, periodId, cancellationToken);
+    }
+
+    /// <summary>
+    /// Runs a reconciliation for a specific source system and period.
+    /// </summary>
+    /// <param name="sourceSystem">The source system to reconcile (e.g., Sales, Procurement).</param>
+    /// <param name="periodId">The ID of the financial period.</param>
+    /// <param name="cancellationToken">A token that can cancel the reconciliation.</param>
+    /// <returns>The reconciliation result.</returns>
+    [HttpPost("run")]
+    [RequirePermission(AccountingPermissions.ReconciliationRun)]
+    public Task<IActionResult> RunReconciliationPost(
+        [FromQuery] string sourceSystem,
+        [FromQuery] Guid periodId,
+        CancellationToken cancellationToken)
+    {
+        return ExecuteReconciliationAsync(sourceSystem, periodId, cancellationToken);
+    }
+
+    private async Task<IActionResult> ExecuteReconciliationAsync(
+        string sourceSystem,
+        Guid periodId,
+        CancellationToken cancellationToken)
+    {
+        var result = await _reconciliationService.ReconcileSubledgerAsync(
+            sourceSystem,
+            periodId,
+            cancellationToken);
         return Ok(result);
     }
 }

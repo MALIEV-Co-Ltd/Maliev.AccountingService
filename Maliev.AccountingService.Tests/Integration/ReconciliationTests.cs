@@ -83,7 +83,9 @@ public class ReconciliationTests : BaseIntegrationTest
         await dbContext.SaveChangesAsync();
 
         // Act
-        var response = await Client.GetAsync($"/accounting/v1/reconciliation/run?sourceSystem={sourceSystem}&periodId={periodId}");
+        var response = await Client.PostAsync(
+            $"/accounting/v1/reconciliation/run?sourceSystem={sourceSystem}&periodId={periodId}",
+            null);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

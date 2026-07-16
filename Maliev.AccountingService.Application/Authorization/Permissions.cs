@@ -43,6 +43,8 @@ public static class AccountingPermissions
     public const string ReportsExport = "accounting.reports.export";
 
     // Period Operations
+    /// <summary>Permission to read periods.</summary>
+    public const string PeriodsRead = "accounting.periods.read";
     /// <summary>Permission to open periods.</summary>
     public const string PeriodsOpen = "accounting.periods.open";
     /// <summary>Permission to close periods.</summary>
@@ -76,6 +78,7 @@ public static class AccountingPermissions
         { ReportsCashFlow, "View cash flow statement" },
         { ReportsTrialBalance, "View trial balance" },
         { ReportsExport, "Export financial reports" },
+        { PeriodsRead, "Read accounting periods" },
         { PeriodsOpen, "Open accounting periods" },
         { PeriodsClose, "Close accounting periods" },
         { PeriodsReopen, "Reopen closed periods" },
