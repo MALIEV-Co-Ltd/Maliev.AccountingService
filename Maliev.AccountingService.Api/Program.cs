@@ -83,7 +83,8 @@ try
     builder.Services.AddPermissionAuthorization();
 
     // IAM Registration
-    builder.AddIAMServiceClient("accounting");
+    builder.AddAuthServiceTokenExchange("AccountingService");
+    builder.AddAuthServiceIAMClient();
     builder.Services.AddIAMRegistration<AccountingIAMRegistrationService>("accounting");
 
     // Register metrics
