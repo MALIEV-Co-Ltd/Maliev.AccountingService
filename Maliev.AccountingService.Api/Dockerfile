@@ -11,7 +11,11 @@ EXPOSE 8081
 # This stage is used to build the service project
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
+ARG GITHUB_ACTIONS=true
+ARG SERVICE_DEFAULTS_VERSION=1.0.89-alpha
+ENV GITHUB_ACTIONS=$GITHUB_ACTIONS
 WORKDIR /src
+COPY ["Directory.Build.props", "."]
 COPY ["Maliev.AccountingService.Api/Maliev.AccountingService.Api.csproj", "Maliev.AccountingService.Api/"]
 COPY ["Maliev.AccountingService.Infrastructure/Maliev.AccountingService.Infrastructure.csproj", "Maliev.AccountingService.Infrastructure/"]
 COPY ["Maliev.AccountingService.Application/Maliev.AccountingService.Application.csproj", "Maliev.AccountingService.Application/"]
@@ -21,15 +25,18 @@ RUN --mount=type=secret,id=nuget_username \
   --mount=type=secret,id=nuget_password \
   NUGET_USERNAME=$(cat /run/secrets/nuget_username) \
   NUGET_PASSWORD=$(cat /run/secrets/nuget_password) \
-  dotnet restore "./Maliev.AccountingService.Api/Maliev.AccountingService.Api.csproj"
+  dotnet restore "./Maliev.AccountingService.Api/Maliev.AccountingService.Api.csproj" \
+  -p:ServiceDefaultsVersion=$SERVICE_DEFAULTS_VERSION
 COPY . .
 WORKDIR "/src/Maliev.AccountingService.Api"
-RUN dotnet build "./Maliev.AccountingService.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet build "./Maliev.AccountingService.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build \
+  --no-restore -p:ServiceDefaultsVersion=$SERVICE_DEFAULTS_VERSION
 
 # This stage is used to publish the service project to be copied to the final stage
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./Maliev.AccountingService.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "./Maliev.AccountingService.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish \
+  /p:UseAppHost=false --no-restore -p:ServiceDefaultsVersion=$SERVICE_DEFAULTS_VERSION
 
 # This stage is used in production or when running from VS in regular mode (Default when not using the Debug configuration)
 FROM base AS final
@@ -47,9 +54,5 @@ COPY --chown=app:app --from=publish /app/publish .
 # Set environment variables
 ENV ASPNETCORE_URLS=http://+:8080
 ENV ASPNETCORE_ENVIRONMENT=Production
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8080/accounting/liveness || exit 1
 
 ENTRYPOINT ["dotnet", "Maliev.AccountingService.Api.dll"]
