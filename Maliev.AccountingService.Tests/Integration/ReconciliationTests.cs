@@ -13,7 +13,7 @@ public class ReconciliationTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task RunReconciliation_Balanced_ShouldReturnSuccess()
+    public async Task RunReconciliation_Post_Balanced_ShouldReturnSuccess()
     {
         await CleanDatabaseAsync();
 
@@ -83,7 +83,9 @@ public class ReconciliationTests : BaseIntegrationTest
         await dbContext.SaveChangesAsync();
 
         // Act
-        var response = await Client.GetAsync($"/accounting/v1/reconciliation/run?sourceSystem={sourceSystem}&periodId={periodId}");
+        var response = await Client.PostAsync(
+            $"/accounting/v1/reconciliation/run?sourceSystem={sourceSystem}&periodId={periodId}",
+            null);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -95,7 +97,7 @@ public class ReconciliationTests : BaseIntegrationTest
     }
 
     [Fact]
-    public async Task RunReconciliation_Unbalanced_ShouldReportVariance()
+    public async Task RunReconciliation_LegacyGet_Unbalanced_ShouldReportVariance()
     {
         await CleanDatabaseAsync();
 

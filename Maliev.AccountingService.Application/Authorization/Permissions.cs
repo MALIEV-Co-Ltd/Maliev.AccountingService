@@ -43,6 +43,8 @@ public static class AccountingPermissions
     public const string ReportsExport = "accounting.reports.export";
 
     // Period Operations
+    /// <summary>Permission to read periods.</summary>
+    public const string PeriodsRead = "accounting.periods.read";
     /// <summary>Permission to open periods.</summary>
     public const string PeriodsOpen = "accounting.periods.open";
     /// <summary>Permission to close periods.</summary>
@@ -51,8 +53,10 @@ public static class AccountingPermissions
     public const string PeriodsReopen = "accounting.periods.reopen";
 
     // Reconciliation Operations
-    /// <summary>Permission to run reconciliation.</summary>
+    /// <summary>Legacy permission for running reconciliation through the deprecated GET contract.</summary>
     public const string ReconciliationRun = "accounting.reconciliation.run";
+    /// <summary>Canonical permission to run reconciliations.</summary>
+    public const string ReconciliationsRun = "accounting.reconciliations.run";
     /// <summary>Permission to read reconciliation results.</summary>
     public const string ReconciliationRead = "accounting.reconciliation.read";
 
@@ -76,10 +80,12 @@ public static class AccountingPermissions
         { ReportsCashFlow, "View cash flow statement" },
         { ReportsTrialBalance, "View trial balance" },
         { ReportsExport, "Export financial reports" },
+        { PeriodsRead, "Read accounting periods" },
         { PeriodsOpen, "Open accounting periods" },
         { PeriodsClose, "Close accounting periods" },
         { PeriodsReopen, "Reopen closed periods" },
         { ReconciliationRun, "Run financial reconciliation" },
+        { ReconciliationsRun, "Run financial reconciliations using the state-changing API" },
         { ReconciliationRead, "Read reconciliation reports" }
     };
 
@@ -98,6 +104,7 @@ public static class AccountingPermissions
         AccountsClose,
         PeriodsClose,
         PeriodsReopen,
-        ReconciliationRun
+        ReconciliationRun,
+        ReconciliationsRun
     };
 }

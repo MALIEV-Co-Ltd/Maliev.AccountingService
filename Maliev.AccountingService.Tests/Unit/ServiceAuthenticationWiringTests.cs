@@ -136,19 +136,43 @@ public sealed class ServiceAuthenticationWiringTests
         AssertEndpoint<JournalEntriesController>(nameof(JournalEntriesController.PostJournalEntry), "{id}/post", "POST", AccountingPermissions.JournalEntriesPost);
 
         AssertControllerRoute<PeriodsController>("accounting/v{version:apiVersion}/periods");
-        AssertEndpoint<PeriodsController>(nameof(PeriodsController.GetPeriods), null, "GET", AccountingPermissions.PeriodsOpen);
+        AssertEndpoint<PeriodsController>(nameof(PeriodsController.GetPeriods), null, "GET", AccountingPermissions.PeriodsRead);
         AssertEndpoint<PeriodsController>(nameof(PeriodsController.OpenPeriod), "open", "POST", AccountingPermissions.PeriodsOpen);
         AssertEndpoint<PeriodsController>(nameof(PeriodsController.ClosePeriod), "{id}/close", "POST", AccountingPermissions.PeriodsClose);
         AssertEndpoint<PeriodsController>(nameof(PeriodsController.ReopenPeriod), "{id}/reopen", "POST", AccountingPermissions.PeriodsReopen);
 
         AssertControllerRoute<ReconciliationController>("accounting/v{version:apiVersion}/reconciliation");
         AssertEndpoint<ReconciliationController>(nameof(ReconciliationController.RunReconciliation), "run", "GET", AccountingPermissions.ReconciliationRun);
+        AssertEndpoint<ReconciliationController>(nameof(ReconciliationController.RunReconciliationPost), "run", "POST", AccountingPermissions.ReconciliationsRun);
+
+        var legacyReconciliation = typeof(ReconciliationController).GetMethod(
+            nameof(ReconciliationController.RunReconciliation),
+            BindingFlags.Public | BindingFlags.Instance);
+        Assert.NotNull(legacyReconciliation?.GetCustomAttribute<ObsoleteAttribute>());
 
         AssertControllerRoute<ReportsController>("accounting/v{version:apiVersion}/reports");
         AssertEndpoint<ReportsController>(nameof(ReportsController.GetBalanceSheet), "balance-sheet", "GET", AccountingPermissions.ReportsBalanceSheet);
         AssertEndpoint<ReportsController>(nameof(ReportsController.GetIncomeStatement), "income-statement", "GET", AccountingPermissions.ReportsIncomeStatement);
         AssertEndpoint<ReportsController>(nameof(ReportsController.GetTrialBalance), "trial-balance", "GET", AccountingPermissions.ReportsTrialBalance);
         AssertEndpoint<ReportsController>(nameof(ReportsController.ExportReports), "export", "GET", AccountingPermissions.ReportsExport);
+    }
+
+    /// <summary>
+    /// Every public controller action must declare an explicit permission guard.
+    /// </summary>
+    [Fact]
+    public void AccountingControllerActions_AllDeclareExplicitPermissionGuards()
+    {
+        var actionMethods = typeof(PeriodsController).Assembly
+            .GetTypes()
+            .Where(type => type is { IsAbstract: false, IsPublic: true } && typeof(ControllerBase).IsAssignableFrom(type))
+            .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+            .Where(method => method.GetCustomAttributes<HttpMethodAttribute>().Any())
+            .ToArray();
+
+        Assert.Equal(24, actionMethods.Length);
+        Assert.All(actionMethods, method =>
+            Assert.NotNull(method.GetCustomAttribute<RequirePermissionAttribute>()));
     }
 
     private static HostApplicationBuilder CreateConfiguredBuilder(
