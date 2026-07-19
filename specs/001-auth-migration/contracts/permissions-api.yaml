@@ -1,0 +1,64 @@
+openapi: 3.0.0
+info:
+  title: Accounting Service Authorization API
+  version: 1.0.0
+paths:
+  /permissions:
+    get:
+      summary: List all registered permissions
+      tags:
+        - Authorization
+      responses:
+        '200':
+          description: A list of permissions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PermissionDto'
+  /roles:
+    get:
+      summary: List all predefined roles
+      tags:
+        - Authorization
+      responses:
+        '200':
+          description: A list of roles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoleDto'
+
+components:
+  schemas:
+    PermissionDto:
+      type: object
+      properties:
+        code:
+          type: string
+          description: The unique code of the permission
+          example: "accounting.journal-entries.post"
+        description:
+          type: string
+          description: Human-readable description
+        isCritical:
+          type: boolean
+          description: Indicates if the permission is high-impact
+    RoleDto:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The unique name of the role
+          example: "accounting-manager"
+        description:
+          type: string
+          description: Description of the role
+        permissions:
+          type: array
+          items:
+            type: string
+          description: List of permission codes assigned to this role
