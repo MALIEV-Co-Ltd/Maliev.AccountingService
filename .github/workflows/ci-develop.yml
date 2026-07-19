@@ -54,7 +54,7 @@ jobs:
           docker push asia-southeast1-docker.pkg.dev/maliev-website/maliev-website-artifact-dev/maliev-accounting-service:${{ github.sha }}
 
       - name: Install Kustomize
-        uses: imranismail/setup-kustomize@v2
+        uses: imranismail/setup-kustomize@v3
 
       - name: Checkout maliev-gitops repository
         uses: actions/checkout@v5
