@@ -53,7 +53,7 @@ public class EventProcessingTests : BaseIntegrationTest
 
         // Act
         await Factory.PublishEventAsync(invoiceEvent);
-        
+
         // Wait for async processing - give more time for RabbitMQ to deliver and process
         await Task.Delay(5000);
 

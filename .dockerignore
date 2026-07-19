@@ -71,3 +71,7 @@ packages/
 # Node modules (if any frontend assets)
 node_modules/
 npm-debug.log
+
+# Exact public-source CI packages
+.ci-packages/
+.ci-nuget/
