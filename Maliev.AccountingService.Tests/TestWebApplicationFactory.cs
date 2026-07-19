@@ -40,15 +40,15 @@ public class TestWebApplicationFactory : BaseIntegrationTestFactory<Program, Acc
     public async Task PublishEventAsync<T>(T message) where T : class
     {
         var logger = Services.GetService<ILogger<TestWebApplicationFactory>>();
-        
+
         try
         {
             var bus = _busControl ?? Services.GetRequiredService<IBusControl>();
             var address = bus.Address;
             logger?.LogInformation("Publishing message to {Address}", address);
-            
+
             await bus.Publish(message);
-            
+
             logger?.LogInformation("Message published successfully");
         }
         catch (Exception ex)
