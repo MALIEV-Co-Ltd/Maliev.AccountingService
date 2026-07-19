@@ -21,6 +21,10 @@ public sealed class BuildModeContractTests
             "<ServiceDefaultsVersion Condition=\"'$(ServiceDefaultsVersion)' == ''\">1.0.*",
             source,
             StringComparison.Ordinal);
+        Assert.Contains(
+            "<SharedLibraryVersion Condition=\"'$(SharedLibraryVersion)' == ''\">1.0.96-alpha</SharedLibraryVersion>",
+            source,
+            StringComparison.Ordinal);
 
         foreach (var project in new[]
                  {
