@@ -44,6 +44,10 @@ appsettings.Testing.json
 # OS files
 .DS_Store
 Thumbs.db
+
+# Exact public-source CI packages
+.ci-packages/
+.ci-nuget/
 NUL
 
 # Temporary & Logs
